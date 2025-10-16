@@ -1,426 +1,403 @@
 # 🔮 Seti Backend API
 
-Flask-based backend API for the Seti prediction market platform. Provides RESTful endpoints for market data, user profiles, predictions, and analytics.
+Flask-based backend for the Seti prediction market platform with **Web2.5 architecture**: fast database queries + blockchain settlement.
 
-## 🚀 Features
+## 🚀 Quick Start (5 Minutes)
 
-- **Market Management**: Index and serve market data from Sui blockchain
-- **User Profiles**: Track user activity, predictions, and statistics
-- **Predictions API**: Record and query user predictions
-- **Analytics**: Platform-wide statistics and insights
-- **Caching**: Redis-based caching for optimal performance
-- **Database**: PostgreSQL/SQLite for data persistence
-
-## 📋 Prerequisites
-
-- Python 3.9+
-- **Supabase account** (recommended) or PostgreSQL/SQLite for development
-- Redis (optional, for caching)
-
-## 🛠️ Installation
-
-### 1. Clone and Setup
+### 1. Install Dependencies
 
 ```bash
 cd backend
 
-# Create virtual environment
-python -m venv venv
+# Create virtual environment (recommended but optional)
+python3 -m venv venv
+source venv/bin/activate  # On Mac/Linux
 
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Install packages
+pip3 install --user -r requirements.txt
 ```
 
-### 2. Environment Configuration
+### 2. Choose Your Database
 
-#### Using Supabase (Recommended)
-
+**Option A: SQLite (Quick Testing)**
 ```bash
-cp .env.supabase.example .env
-```
-
-Edit `.env` with your Supabase credentials:
-
-```env
-# Flask Configuration
+# Create .env
+cat > .env << 'EOF'
 FLASK_APP=run.py
 FLASK_ENV=development
-SECRET_KEY=your-secret-key-here
-
-# Supabase Database
-DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
-
-# Supabase API
-SUPABASE_URL=https://[YOUR-PROJECT-REF].supabase.co
-SUPABASE_KEY=[YOUR-ANON-KEY]
-SUPABASE_SERVICE_KEY=[YOUR-SERVICE-ROLE-KEY]
-
-# Sui Blockchain
+SECRET_KEY=dev-secret-key
+DATABASE_URL=sqlite:///seti.db
 SUI_NETWORK=devnet
 SUI_RPC_URL=https://fullnode.devnet.sui.io:443
 SUI_PACKAGE_ID=0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
+PORT=5001
+HOST=0.0.0.0
+EOF
 
-# CORS
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-```
-
-**📖 For detailed Supabase setup instructions, see [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)**
-
-#### Using Local PostgreSQL or SQLite
-
-```bash
-cp .env.example .env
-# Edit with local database URL
-```
-
-### 3. Database Setup
-
-```bash
 # Initialize database
-flask db init
-
-# Create migrations
-flask db migrate -m "Initial migration"
-
-# Apply migrations
-flask db upgrade
+python3 scripts/init_db.py
 ```
 
-### 4. Run the Server
+**Option B: Supabase (Production)**
+```bash
+# Get credentials from https://supabase.com/dashboard
+# Settings > Database > Connection string (URI)
+# Settings > API > Project URL, anon key, service_role key
+
+cat > .env << 'EOF'
+FLASK_APP=run.py
+FLASK_ENV=development
+SECRET_KEY=your-secret-key
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_REF.supabase.co:5432/postgres
+SUPABASE_URL=https://YOUR_REF.supabase.co
+SUPABASE_KEY=YOUR_ANON_KEY
+SUPABASE_SERVICE_KEY=YOUR_SERVICE_KEY
+SUI_NETWORK=devnet
+SUI_RPC_URL=https://fullnode.devnet.sui.io:443
+SUI_PACKAGE_ID=0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
+PORT=5001
+HOST=0.0.0.0
+EOF
+
+# Run SQL schema in Supabase SQL Editor (copy from supabase_schema.sql)
+```
+
+### 3. Seed Sample Data
 
 ```bash
-# Development
-python run.py
-
-# Or with Flask CLI
-flask run
+python3 scripts/seed_data.py
+python3 scripts/add_predictions.py
 ```
 
-The API will be available at `http://localhost:5000`
+### 4. Start Backend
 
-## 📚 API Documentation
+```bash
+python3 run.py
+```
+
+✅ API running at **http://localhost:5001**
+
+### 5. Test
+
+```bash
+curl http://localhost:5001/health
+curl http://localhost:5001/api/v1/markets
+```
+
+---
+
+## 📡 API Endpoints
 
 ### Markets
-
-#### Get All Markets
-```http
-GET /api/v1/markets?page=1&per_page=20&category=Crypto&status=active&sort_by=volume_24h
+```bash
+GET    /api/v1/markets                    # List markets (filter, search, paginate)
+GET    /api/v1/markets/:id                # Single market
+GET    /api/v1/markets/featured           # Featured markets
+GET    /api/v1/markets/categories         # Categories with counts
+POST   /api/v1/markets/sync               # Sync from blockchain
 ```
 
-**Query Parameters:**
-- `page`: Page number (default: 1)
-- `per_page`: Items per page (default: 20, max: 100)
-- `category`: Filter by category (optional)
-- `status`: `active` or `resolved` (optional)
-- `sort_by`: `volume_24h`, `total_liquidity`, `created_timestamp` (default: `created_timestamp`)
-- `search`: Search in question/description (optional)
-
-**Response:**
-```json
-{
-  "markets": [...],
-  "pagination": {
-    "page": 1,
-    "per_page": 20,
-    "total": 100,
-    "pages": 5,
-    "has_next": true,
-    "has_prev": false
-  }
-}
-```
-
-#### Get Single Market
-```http
-GET /api/v1/markets/<market_id>
-```
-
-#### Get Featured Markets
-```http
-GET /api/v1/markets/featured
-```
-
-#### Get Categories
-```http
-GET /api/v1/markets/categories
-```
-
-#### Sync Markets from Blockchain
-```http
-POST /api/v1/markets/sync
-```
+**Query params:** `page`, `per_page`, `category`, `status`, `sort_by`, `search`
 
 ### Predictions
-
-#### Get Predictions
-```http
-GET /api/v1/predictions?market_id=0x123...&user_address=0xabc...
-```
-
-**Query Parameters:**
-- `page`: Page number
-- `per_page`: Items per page
-- `market_id`: Filter by market (optional)
-- `user_address`: Filter by user (optional)
-- `outcome`: Filter by outcome (0 or 1) (optional)
-
-#### Create Prediction
-```http
-POST /api/v1/predictions
-Content-Type: application/json
-
-{
-  "transaction_hash": "0x...",
-  "market_id": "0x...",
-  "user_address": "0x...",
-  "outcome": 1,
-  "amount": 1000000000,
-  "price": 550000000,
-  "shares": 500000000,
-  "timestamp": 1234567890
-}
-```
-
-#### Get Recent Predictions
-```http
-GET /api/v1/predictions/recent?limit=50
+```bash
+GET    /api/v1/predictions                # List predictions
+GET    /api/v1/predictions/:id            # Single prediction
+POST   /api/v1/predictions                # Record new prediction
+GET    /api/v1/predictions/recent         # Recent activity
 ```
 
 ### Users
-
-#### Get User Profile
-```http
-GET /api/v1/users/<address>
-```
-
-#### Update User Profile
-```http
-PUT /api/v1/users/<address>
-Content-Type: application/json
-
-{
-  "username": "trader123",
-  "email": "trader@example.com",
-  "avatar_url": "https://...",
-  "bio": "Prediction market enthusiast"
-}
-```
-
-#### Get User Predictions
-```http
-GET /api/v1/users/<address>/predictions
-```
-
-#### Get User Statistics
-```http
-GET /api/v1/users/<address>/stats
-```
-
-#### Get Leaderboard
-```http
-GET /api/v1/users/leaderboard?sort_by=total_volume&limit=50
+```bash
+GET    /api/v1/users/:address             # User profile
+PUT    /api/v1/users/:address             # Update profile
+GET    /api/v1/users/:address/predictions # User's predictions
+GET    /api/v1/users/:address/stats       # User statistics
+GET    /api/v1/users/leaderboard          # Top traders
 ```
 
 ### Analytics
-
-#### Get Platform Overview
-```http
-GET /api/v1/analytics/overview
+```bash
+GET    /api/v1/analytics/overview         # Platform stats
+GET    /api/v1/analytics/markets/top      # Top markets
+GET    /api/v1/analytics/categories/stats # Category breakdown
+GET    /api/v1/analytics/activity/recent  # Recent activity
 ```
 
-**Response:**
-```json
-{
-  "overview": {
-    "total_markets": 150,
-    "active_markets": 120,
-    "resolved_markets": 30,
-    "total_volume": 50000000000000,
-    "total_liquidity": 10000000000000,
-    "total_predictions": 5000,
-    "total_users": 500,
-    "active_users_7d": 150
-  }
-}
+---
+
+## 🗄️ Database Schema
+
+**9 Tables (Web2.5 Architecture):**
+
+1. **markets** - Market data from blockchain + engagement metrics
+2. **predictions** - Transaction history
+3. **users** - Rich profiles (username, avatar, stats, gamification)
+4. **liquidity_providers** - LP tracking
+5. **liquidity_withdrawals** - LP withdrawal history
+6. **comments** - Social layer (discussions, replies)
+7. **favorites** - User watchlists
+8. **notifications** - User notifications
+9. **activity_feed** - Platform-wide activity
+
+### What's Stored
+
+✅ **All blockchain data** (cached for speed)
+- Markets, predictions, liquidity, resolutions
+
+✅ **Web2 enhancements** (not on blockchain)
+- User profiles (username, avatar, bio)
+- Comments and discussions
+- Favorites/watchlists
+- Notifications
+- View counts, trending scores
+- Analytics and aggregations
+
+---
+
+## 🔗 Frontend Integration
+
+### Setup Frontend
+
+```bash
+# In frontend directory
+cat > .env.local << 'EOF'
+VITE_API_URL=http://localhost:5001/api/v1
+VITE_SUI_PACKAGE_ID=0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
+VITE_NETWORK=devnet
+VITE_SUI_RPC_URL=https://fullnode.devnet.sui.io:443
+EOF
 ```
 
-#### Get Top Markets
-```http
-GET /api/v1/analytics/markets/top?metric=volume&limit=10
+### API Service (Frontend)
+
+```typescript
+// src/services/api.ts
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+export const marketsApi = {
+  getAll: (params) => fetch(`${API_BASE_URL}/markets?${new URLSearchParams(params)}`),
+  getById: (id) => fetch(`${API_BASE_URL}/markets/${id}`),
+};
+
+// Usage in React
+const { markets } = await marketsApi.getAll({ category: 'Crypto' });
 ```
 
-**Metrics:** `volume`, `liquidity`, `predictions`
+### Sync Blockchain Transactions
 
-#### Get Category Statistics
-```http
-GET /api/v1/analytics/categories/stats
+```typescript
+// After blockchain transaction succeeds
+await fetch('http://localhost:5001/api/v1/predictions', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    transaction_hash: txResult.digest,
+    market_id: marketId,
+    user_address: currentUser.address,
+    outcome: 1, // YES
+    amount: 1000000000,
+    timestamp: Math.floor(Date.now() / 1000)
+  })
+});
 ```
 
-#### Get Recent Activity
-```http
-GET /api/v1/analytics/activity/recent?limit=20
-```
+---
 
-### Health Check
-
-```http
-GET /health
-```
-
-## 🏗️ Project Structure
+## 🌐 Web2.5 Architecture
 
 ```
-backend/
-├── app/
-│   ├── __init__.py           # App factory
-│   ├── api/                  # API routes
-│   │   ├── markets.py
-│   │   ├── predictions.py
-│   │   ├── users.py
-│   │   └── analytics.py
-│   ├── models/               # Database models
-│   │   ├── market.py
-│   │   ├── prediction.py
-│   │   └── user.py
-│   ├── services/             # Business logic
-│   │   └── sui_service.py
-│   └── utils/                # Utilities
-│       ├── helpers.py
-│       └── validators.py
-├── config/
-│   └── settings.py           # Configuration
-├── migrations/               # Database migrations
-├── requirements.txt
-├── run.py                    # Application entry point
-└── README.md
+┌──────────────┐
+│   Frontend   │ (React, fast UX)
+└──────┬───────┘
+       │
+       ├─────────────┬─────────────┐
+       ↓             ↓             ↓
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│ Backend  │  │   Sui    │  │ Wallet   │
+│   API    │  │Blockchain│  │  (Sign)  │
+└─────┬────┘  └──────────┘  └──────────┘
+      │
+      ↓
+┌──────────┐
+│ Supabase │
+│ Database │
+└──────────┘
 ```
 
-## 🔧 Database Models
+**User Flow:**
+1. User places bet → Signs with wallet → Blockchain confirms ✅
+2. Frontend → Backend API → Stores in database instantly 🚀
+3. User sees update immediately (no blockchain query needed) ⚡
+4. Social features (comments, favorites) → Database only 💬
 
-### Market
-- Stores cached market data from blockchain
-- Includes liquidity, shares, volume, and metadata
-- Calculates YES/NO prices dynamically
+**Benefits:**
+- ⚡ Fast as traditional web apps
+- 🔒 Secured by blockchain
+- 🎯 Rich features (search, analytics, social)
+- 📊 Better UX than pure Web3
 
-### Prediction
-- Records user predictions/trades
-- Links to markets and users
-- Tracks amounts, outcomes, and timestamps
+---
 
-### User
-- User profiles and statistics
-- Aggregates prediction counts and volumes
-- Tracks activity timestamps
+## 🛠️ Troubleshooting
+
+### Port 5000 Already in Use
+macOS AirPlay uses port 5000. Use port 5001 instead (already configured).
+
+### CORS Errors
+Add your frontend URL to `CORS_ORIGINS` in `.env`
+
+### Database Connection Failed (Supabase)
+- Check `DATABASE_URL` password is correct
+- Verify project reference in URL
+- Ensure Supabase project is active
+
+### No Markets Showing
+Run seed scripts:
+```bash
+python3 scripts/seed_data.py
+python3 scripts/add_predictions.py
+```
+
+### Import Errors
+```bash
+pip3 install --user -r requirements.txt
+```
+
+---
 
 ## 🚀 Deployment
 
 ### Using Gunicorn
 
 ```bash
-gunicorn -w 4 -b 0.0.0.0:5000 run:app
+gunicorn -w 4 -b 0.0.0.0:5001 run:app
 ```
 
 ### Using Docker
 
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "run:app"]
+```bash
+docker-compose up -d
 ```
 
-### Environment Variables for Production
+### Environment Variables (Production)
 
 ```env
 FLASK_ENV=production
 SECRET_KEY=<strong-random-key>
-DATABASE_URL=postgresql://user:pass@host:5432/db
-REDIS_URL=redis://host:6379/0
-SUI_NETWORK=mainnet
-SUI_RPC_URL=https://fullnode.mainnet.sui.io:443
+DATABASE_URL=<supabase-connection-string>
+CORS_ORIGINS=https://yourdomain.com
 ```
-
-## 🧪 Testing
-
-```bash
-# Run tests
-python -m pytest
-
-# With coverage
-python -m pytest --cov=app
-```
-
-## 📊 Caching Strategy
-
-- Market lists: 60 seconds
-- Single market: 30 seconds
-- Categories: 5 minutes
-- Analytics: 5 minutes
-- User stats: 2 minutes
-
-## 🔐 Security Considerations
-
-- Use strong `SECRET_KEY` in production
-- Enable HTTPS/TLS
-- Implement rate limiting
-- Validate all user inputs
-- Sanitize database queries
-- Keep dependencies updated
-
-## 📝 Development
-
-### Adding a New Endpoint
-
-1. Create route in appropriate blueprint (`app/api/`)
-2. Add business logic to service layer if needed
-3. Update models if database changes required
-4. Create migration: `flask db migrate -m "description"`
-5. Apply migration: `flask db upgrade`
-
-### Database Migrations
-
-```bash
-# Create migration
-flask db migrate -m "Add new field"
-
-# Apply migration
-flask db upgrade
-
-# Rollback
-flask db downgrade
-```
-
-## 🤝 Integration with Frontend
-
-The frontend should point to this backend:
-
-```typescript
-// In frontend .env
-VITE_API_URL=http://localhost:5000/api/v1
-```
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 👥 Support
-
-For issues and questions:
-- GitHub Issues: [repository link]
-- Email: support@seti.app
 
 ---
 
-Built with ❤️ for the Sui ecosystem
+## 📊 Data Flow Example
 
+**Creating a Prediction:**
+
+1. **Frontend** → User clicks "Place Bet"
+2. **Wallet** → Signs blockchain transaction
+3. **Blockchain** → Processes transaction, confirms
+4. **Frontend** → Calls backend API:
+   ```bash
+   POST /api/v1/predictions
+   { transaction_hash, market_id, user_address, outcome, amount }
+   ```
+5. **Backend** → Stores in database
+6. **Frontend** → Instantly shows updated UI (from database, not blockchain)
+
+**Result:** Users get instant feedback + blockchain security! 🎉
+
+---
+
+## 🎯 Project Structure
+
+```
+backend/
+├── app/
+│   ├── __init__.py              # Flask app factory
+│   ├── api/                     # API routes
+│   │   ├── markets.py           # Market endpoints
+│   │   ├── predictions.py       # Prediction endpoints
+│   │   ├── users.py             # User endpoints
+│   │   └── analytics.py         # Analytics endpoints
+│   ├── models/                  # Database models
+│   │   ├── market.py
+│   │   ├── prediction.py
+│   │   ├── user.py
+│   │   ├── liquidity.py
+│   │   ├── comment.py
+│   │   └── notification.py
+│   ├── services/                # Business logic
+│   │   ├── sui_service.py       # Blockchain integration
+│   │   └── supabase_service.py  # Supabase features
+│   └── utils/                   # Utilities
+│       ├── helpers.py
+│       └── validators.py
+├── config/
+│   └── settings.py              # Configuration
+├── scripts/
+│   ├── init_db.py              # Database initialization
+│   ├── seed_data.py            # Sample data
+│   └── add_predictions.py      # Add predictions
+├── supabase_schema.sql         # Supabase SQL schema
+├── requirements.txt            # Python dependencies
+├── run.py                      # Application entry point
+├── Dockerfile
+├── docker-compose.yml
+└── README.md                   # This file
+```
+
+---
+
+## 📚 Tech Stack
+
+- **Flask 3.0** - Web framework
+- **SQLAlchemy 2.0** - ORM
+- **PostgreSQL** (Supabase) - Database
+- **Flask-CORS** - CORS handling
+- **Flask-Caching** - Response caching
+- **Supabase** - Database + realtime + storage
+
+---
+
+## 📄 License
+
+MIT License - see LICENSE file
+
+---
+
+## 🆘 Support
+
+**Backend running?**
+```bash
+curl http://localhost:5001/health
+# Expected: {"status": "healthy", "service": "seti-backend"}
+```
+
+**Check logs:** Backend outputs to console
+
+**Database issues:** Check `.env` file configuration
+
+**Still stuck?** Create an issue on GitHub
+
+---
+
+## ✅ Success Checklist
+
+- [ ] Backend running on port 5001
+- [ ] Database configured (SQLite or Supabase)
+- [ ] Sample data seeded
+- [ ] API responds to `/health`
+- [ ] Markets endpoint returns data
+- [ ] Frontend `.env.local` configured
+- [ ] CORS enabled for your frontend port
+- [ ] No errors in browser console
+
+---
+
+**Built with ❤️ for the Sui ecosystem**
+
+🚀 **Your Web2.5 prediction market backend is ready!**
