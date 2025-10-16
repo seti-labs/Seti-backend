@@ -15,13 +15,36 @@ class User(db.Model):
     total_predictions = db.Column(db.Integer, default=0)
     total_volume = db.Column(db.BigInteger, default=0)
     markets_created = db.Column(db.Integer, default=0)
+    win_count = db.Column(db.Integer, default=0)
+    loss_count = db.Column(db.Integer, default=0)
+    total_pnl = db.Column(db.BigInteger, default=0)  # Profit and Loss
+    
+    # Engagement
+    follower_count = db.Column(db.Integer, default=0)
+    following_count = db.Column(db.Integer, default=0)
+    
+    # Gamification
+    level = db.Column(db.Integer, default=1)
+    experience_points = db.Column(db.Integer, default=0)
+    badges = db.Column(db.JSON, default=list)  # Array of badge IDs
+    
+    # Preferences
+    notification_settings = db.Column(db.JSON, default=dict)
+    theme_preference = db.Column(db.String(20), default='system')  # light, dark, system
     
     # Metadata
     first_seen = db.Column(db.DateTime, default=datetime.utcnow)
     last_active = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_verified = db.Column(db.Boolean, default=False)
+    is_banned = db.Column(db.Boolean, default=False)
     
     # Relationships
     predictions = db.relationship('Prediction', backref='user', lazy='dynamic')
+    comments = db.relationship('Comment', backref='user', lazy='dynamic')
+    favorites = db.relationship('Favorite', backref='user', lazy='dynamic')
+    liquidity_provided = db.relationship('LiquidityProvider', backref='user', lazy='dynamic')
+    notifications = db.relationship('Notification', backref='user', lazy='dynamic')
+    activity_feed = db.relationship('ActivityFeed', backref='user', lazy='dynamic')
     
     def __repr__(self):
         return f'<User {self.address}>'

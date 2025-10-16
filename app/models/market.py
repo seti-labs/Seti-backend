@@ -25,8 +25,23 @@ class Market(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     indexed_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Additional metadata for Web2.5
+    view_count = db.Column(db.Integer, default=0)
+    participant_count = db.Column(db.Integer, default=0)
+    comment_count = db.Column(db.Integer, default=0)
+    favorite_count = db.Column(db.Integer, default=0)
+    
+    # SEO and discoverability
+    slug = db.Column(db.String(200), unique=True)  # URL-friendly slug
+    featured = db.Column(db.Boolean, default=False)
+    trending_score = db.Column(db.Float, default=0.0)
+    
     # Relationships
     predictions = db.relationship('Prediction', backref='market', lazy='dynamic', cascade='all, delete-orphan')
+    comments = db.relationship('Comment', backref='market', lazy='dynamic', cascade='all, delete-orphan')
+    favorites = db.relationship('Favorite', backref='market', lazy='dynamic', cascade='all, delete-orphan')
+    liquidity_providers = db.relationship('LiquidityProvider', backref='market', lazy='dynamic', cascade='all, delete-orphan')
+    activity_feed = db.relationship('ActivityFeed', backref='market', lazy='dynamic', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Market {self.id}: {self.question[:50]}>'
