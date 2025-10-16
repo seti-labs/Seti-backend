@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: seti_db
+      POSTGRES_USER: seti
+      POSTGRES_PASSWORD: seti_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seti"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://seti:seti_password@postgres:5432/seti_db
+      REDIS_URL: redis://redis:6379/0
+      SUI_NETWORK: devnet
+      SUI_RPC_URL: https://fullnode.devnet.sui.io:443
+      SUI_PACKAGE_ID: 0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      SECRET_KEY: dev-secret-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: >
+      sh -c "flask db upgrade && 
+             gunicorn -w 4 -b 0.0.0.0:5000 --reload run:app"
+
+volumes:
+  postgres_data:
+  redis_data:
+
