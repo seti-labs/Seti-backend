@@ -55,6 +55,12 @@ def get_markets():
         for market in pagination.items:
             market_dict = market.to_dict()
             market_dict['prices'] = market.calculate_prices()
+            
+            # Add prediction count
+            from app.models import Prediction
+            prediction_count = Prediction.query.filter_by(market_id=market.id).count()
+            market_dict['prediction_count'] = prediction_count
+            
             markets.append(market_dict)
         
         return jsonify({
@@ -90,6 +96,18 @@ def get_market(market_id):
         
         market_dict = market.to_dict()
         market_dict['prices'] = market.calculate_prices()
+        
+        # Add prediction count and recent predictions
+        from app.models import Prediction
+        prediction_count = Prediction.query.filter_by(market_id=market.id).count()
+        market_dict['prediction_count'] = prediction_count
+        
+        # Get recent predictions for this market
+        recent_predictions = Prediction.query.filter_by(
+            market_id=market.id
+        ).order_by(desc(Prediction.timestamp)).limit(10).all()
+        
+        market_dict['recent_predictions'] = [p.to_dict() for p in recent_predictions]
         
         return jsonify({'market': market_dict}), 200
     except Exception as e:

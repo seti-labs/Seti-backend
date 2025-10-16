@@ -23,11 +23,12 @@ def create_app(config_name='default'):
     CORS(app, origins=app.config['CORS_ORIGINS'])
     
     # Register blueprints
-    from app.api import markets, predictions, users, analytics
+    from app.api import markets, predictions, users, analytics, comments
     app.register_blueprint(markets.bp, url_prefix='/api/v1/markets')
     app.register_blueprint(predictions.bp, url_prefix='/api/v1/predictions')
     app.register_blueprint(users.bp, url_prefix='/api/v1/users')
     app.register_blueprint(analytics.bp, url_prefix='/api/v1/analytics')
+    app.register_blueprint(comments.bp, url_prefix='/api/v1/comments')
     
     # Health check endpoint
     @app.route('/health')
