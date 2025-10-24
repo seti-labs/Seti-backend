@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db, cache
-from app.models import Market
+from app.models import Market, User
 from app.services.sui_service import SuiService
 from sqlalchemy import desc, func
 
@@ -183,5 +183,72 @@ def get_featured_markets():
         
         return jsonify({'markets': market_list}), 200
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('', methods=['POST'])
+def create_market():
+    """Create a new market"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['question', 'description', 'end_time', 'category', 'creator']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Validate end_time is in the future
+        from datetime import datetime, timezone
+        end_time = datetime.fromisoformat(data['end_time'].replace('Z', '+00:00'))
+        if end_time <= datetime.now(timezone.utc):
+            return jsonify({'error': 'End time must be in the future'}), 400
+        
+        # Generate a unique market ID (simplified for demo)
+        import time
+        market_id = f"market_{int(time.time())}_{data['creator'][:8]}"
+        
+        # Create market
+        market = Market(
+            id=market_id,
+            question=data['question'],
+            description=data['description'],
+            category=data['category'],
+            creator=data['creator'],
+            end_time=int(end_time.timestamp()),
+            image_url=data.get('image_url'),
+            tags=data.get('tags', []),
+            outcome_a_shares=1000000000,  # Default 1B shares for YES
+            outcome_b_shares=1000000000,  # Default 1B shares for NO
+            total_liquidity=2000000000,   # Default 2B total liquidity
+            created_timestamp=int(time.time()),
+            resolved=False,
+            winning_outcome=None
+        )
+        
+        db.session.add(market)
+        
+        # Update user's markets_created count and activity
+        user = User.query.get(data['creator'])
+        if user:
+            user.markets_created += 1
+            user.update_stats()
+            user.last_active = datetime.utcnow()
+        else:
+            # Create user if doesn't exist
+            user = User(address=data['creator'])
+            user.markets_created = 1
+            db.session.add(user)
+        
+        db.session.commit()
+        
+        # Clear cache
+        cache.clear()
+        
+        return jsonify({
+            'message': 'Market created successfully',
+            'market': market.to_dict()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 

@@ -71,32 +71,69 @@ def create_prediction():
         data = request.get_json()
         
         # Validate required fields
-        required_fields = ['transaction_hash', 'market_id', 'user_address', 'outcome', 'amount', 'timestamp']
+        required_fields = ['market_id', 'user_address', 'outcome', 'amount']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Check if prediction already exists
+        # Validate market exists
+        market = Market.query.get(data['market_id'])
+        if not market:
+            return jsonify({'error': 'Market not found'}), 404
+        
+        # Validate market is not resolved
+        if market.resolved:
+            return jsonify({'error': 'Cannot predict on resolved market'}), 400
+        
+        # Validate outcome and convert to integer
+        if data['outcome'] not in ['YES', 'NO']:
+            return jsonify({'error': 'Outcome must be YES or NO'}), 400
+        
+        outcome_int = 1 if data['outcome'] == 'YES' else 0
+        
+        # Generate transaction hash if not provided (for simulation)
+        transaction_hash = data.get('transaction_hash', f'sim_{data["user_address"]}_{int(datetime.utcnow().timestamp())}')
+        
+        # Check if prediction already exists (by user, market, and outcome)
         existing = Prediction.query.filter_by(
-            transaction_hash=data['transaction_hash']
+            market_id=data['market_id'],
+            user_address=data['user_address'],
+            outcome=outcome_int
         ).first()
         
         if existing:
-            return jsonify({'error': 'Prediction already exists'}), 409
+            return jsonify({'error': 'User already has a prediction on this outcome for this market'}), 409
+        
+        # Calculate price and shares (simplified)
+        total_shares = market.outcome_a_shares + market.outcome_b_shares
+        if outcome_int == 1:  # YES
+            price = market.outcome_a_shares / total_shares if total_shares > 0 else 0.5
+        else:  # NO
+            price = market.outcome_b_shares / total_shares if total_shares > 0 else 0.5
+        
+        shares = int(data['amount'] / price) if price > 0 else 0
         
         # Create prediction
         prediction = Prediction(
-            transaction_hash=data['transaction_hash'],
+            transaction_hash=transaction_hash,
             market_id=data['market_id'],
             user_address=data['user_address'],
-            outcome=data['outcome'],
+            outcome=outcome_int,
             amount=data['amount'],
-            price=data.get('price'),
-            shares=data.get('shares'),
-            timestamp=data['timestamp']
+            price=int(price * 1000000000),  # Convert to integer (multiply by 1B)
+            shares=shares,
+            timestamp=int(datetime.utcnow().timestamp())
         )
         
         db.session.add(prediction)
+        
+        # Update market liquidity
+        if outcome_int == 1:  # YES
+            market.outcome_a_shares += shares
+        else:  # NO
+            market.outcome_b_shares += shares
+        market.total_liquidity += data['amount']
+        market.volume_24h += data['amount']
         
         # Update or create user
         user = User.query.get(data['user_address'])
@@ -104,13 +141,24 @@ def create_prediction():
             user = User(address=data['user_address'])
             db.session.add(user)
         
+        # Update user stats and activity
         user.update_stats()
+        user.last_active = datetime.utcnow()
         
         db.session.commit()
         
         return jsonify({
             'message': 'Prediction created successfully',
-            'prediction': prediction.to_dict()
+            'prediction': prediction.to_dict(),
+            'receipt': {
+                'transaction_hash': transaction_hash,
+                'market_id': data['market_id'],
+                'outcome': data['outcome'],
+                'amount': data['amount'],
+                'shares': shares,
+                'price': price,
+                'timestamp': prediction.timestamp
+            }
         }), 201
     except Exception as e:
         db.session.rollback()

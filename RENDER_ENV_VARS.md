@@ -63,3 +63,4 @@ curl -I -H "Origin: http://localhost:8080" https://seti-backend.onrender.com/api
 
 Should see: `Access-Control-Allow-Origin: http://localhost:8080`
 
+

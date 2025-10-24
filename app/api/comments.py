@@ -77,3 +77,4 @@ def create_comment():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+

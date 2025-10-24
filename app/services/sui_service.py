@@ -60,16 +60,38 @@ class SuiService:
             return None
     
     def fetch_all_markets(self) -> List[Dict]:
-        """Fetch all markets from blockchain (placeholder)"""
-        # This would require event indexing or querying dynamic fields
-        # For now, return empty list
-        # In production, you would:
-        # 1. Query market creation events
-        # 2. Get all market objects
-        # 3. Parse and return market data
-        
-        print("fetch_all_markets: Not implemented - requires event indexing")
-        return []
+        """Fetch all markets from blockchain"""
+        try:
+            # Query for all objects of type Market
+            result = self._rpc_call('suix_queryObjects', [{
+                "filter": {
+                    "StructType": f"{self.package_id}::{self.module}::Market"
+                },
+                "options": {
+                    "showType": True,
+                    "showOwner": True,
+                    "showPreviousTransaction": True,
+                    "showDisplay": False,
+                    "showContent": True,
+                    "showBcs": False,
+                    "showStorageRebate": False
+                }
+            }])
+            
+            markets = []
+            if result and 'data' in result:
+                for obj in result['data']:
+                    if 'data' in obj and 'content' in obj['data']:
+                        fields = obj['data']['content'].get('fields', {})
+                        market_id = obj['data']['objectId']
+                        market_data = self._parse_market_data(fields, market_id)
+                        if market_data:
+                            markets.append(market_data)
+            
+            return markets
+        except Exception as e:
+            print(f"Error fetching all markets: {e}")
+            return []
     
     def _parse_market_data(self, fields: Dict, market_id: str) -> Dict:
         """Parse market data from blockchain response"""
