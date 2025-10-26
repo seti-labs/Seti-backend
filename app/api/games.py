@@ -97,3 +97,17 @@ def sync_games():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@games_bp.route('/countries', methods=['GET'])
+def get_countries():
+    """Get list of all countries from API"""
+    try:
+        countries = game_service.fetch_countries()
+        
+        return jsonify({
+            'countries': countries,
+            'count': len(countries)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

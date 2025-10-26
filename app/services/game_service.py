@@ -96,5 +96,20 @@ class GameService:
             db.session.rollback()
             print(f"Error syncing game: {e}")
             return None
+    
+    def fetch_countries(self) -> List[Dict]:
+        """Fetch all countries from API"""
+        data = self._make_request('teams/countries', None)
+        if not data or 'response' not in data:
+            return []
+        
+        countries = []
+        for country in data['response']:
+            countries.append({
+                'name': country['name'],
+                'code': country.get('code'),
+                'flag': country.get('flag')
+            })
+        return countries
 
 game_service = GameService()
