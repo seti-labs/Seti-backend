@@ -20,8 +20,8 @@ RUN useradd -m -u 1000 seti && chown -R seti:seti /app
 USER seti
 
 # Expose port
-EXPOSE 5000
+EXPOSE $PORT
 
 # Run with gunicorn
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "run:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:$PORT", "--timeout", "120", "run:app"]
 

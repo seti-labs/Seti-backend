@@ -21,13 +21,14 @@ class Config:
     SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
     SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY', '')
     
-    # Sui Blockchain
-    SUI_NETWORK = os.getenv('SUI_NETWORK', 'devnet')
-    SUI_RPC_URL = os.getenv('SUI_RPC_URL', 'https://fullnode.devnet.sui.io:443')
-    SUI_PACKAGE_ID = os.getenv('SUI_PACKAGE_ID', '0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb')
+    # Base Blockchain
+    BASE_NETWORK = os.getenv('BASE_NETWORK', 'sepolia')
+    BASE_RPC_URL = os.getenv('BASE_RPC_URL', 'https://base-sepolia.api.onfinality.io/public')
+    PREDICTION_MARKET_CONTRACT_ADDRESS = os.getenv('PREDICTION_MARKET_CONTRACT_ADDRESS', '0x63c0c19a282a1B52b07dD5a65b58948a07DAE32B')
     
-    # CORS
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    # CORS - Allow all origins for now, restrict in production
+    # Include Seti frontend domains
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,http://localhost:3000,http://localhost:5173').split(',') if os.getenv('CORS_ORIGINS') != '*' else '*'
     
     # Caching
     CACHE_TYPE = 'redis' if os.getenv('REDIS_URL') else 'simple'

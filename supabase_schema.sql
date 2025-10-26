@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS markets (
     total_liquidity BIGINT DEFAULT 0,
     outcome_a_shares BIGINT DEFAULT 0,
     outcome_b_shares BIGINT DEFAULT 0,
+    yes_pool BIGINT DEFAULT 0,
+    no_pool BIGINT DEFAULT 0,
     volume_24h BIGINT DEFAULT 0,
     created_timestamp BIGINT NOT NULL,
     category VARCHAR(50),
@@ -65,6 +67,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     amount BIGINT NOT NULL,
     price BIGINT,
     shares BIGINT,
+    claimed BOOLEAN DEFAULT FALSE,
     timestamp BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );

@@ -27,9 +27,9 @@ FLASK_APP=run.py
 FLASK_ENV=development
 SECRET_KEY=dev-secret-key
 DATABASE_URL=sqlite:///seti.db
-SUI_NETWORK=devnet
-SUI_RPC_URL=https://fullnode.devnet.sui.io:443
-SUI_PACKAGE_ID=0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
+BASE_NETWORK=sepolia
+BASE_RPC_URL=https://base-sepolia.api.onfinality.io/public
+PREDICTION_MARKET_CONTRACT_ADDRESS=0x63c0c19a282a1B52b07dD5a65b58948a07DAE32B
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
 PORT=5001
 HOST=0.0.0.0
@@ -53,9 +53,9 @@ DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_REF.supabase.co:5432/po
 SUPABASE_URL=https://YOUR_REF.supabase.co
 SUPABASE_KEY=YOUR_ANON_KEY
 SUPABASE_SERVICE_KEY=YOUR_SERVICE_KEY
-SUI_NETWORK=devnet
-SUI_RPC_URL=https://fullnode.devnet.sui.io:443
-SUI_PACKAGE_ID=0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
+BASE_NETWORK=sepolia
+BASE_RPC_URL=https://base-sepolia.api.onfinality.io/public
+PREDICTION_MARKET_CONTRACT_ADDRESS=0x63c0c19a282a1B52b07dD5a65b58948a07DAE32B
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
 PORT=5001
 HOST=0.0.0.0
@@ -165,9 +165,9 @@ GET    /api/v1/analytics/activity/recent  # Recent activity
 # In frontend directory
 cat > .env.local << 'EOF'
 VITE_API_URL=http://localhost:5001/api/v1
-VITE_SUI_PACKAGE_ID=0x9fb4dbbd21acb0e9c3f61a6f7bf91a098ebd772f87e764fcdfe582069936fdcb
-VITE_NETWORK=devnet
-VITE_SUI_RPC_URL=https://fullnode.devnet.sui.io:443
+VITE_CONTRACT_ADDRESS=0x63c0c19a282a1B52b07dD5a65b58948A07DAE32B
+VITE_NETWORK=baseSepolia
+VITE_ETH_RPC_URL=https://sepolia.base.org
 EOF
 ```
 
@@ -216,7 +216,7 @@ await fetch('http://localhost:5001/api/v1/predictions', {
        ├─────────────┬─────────────┐
        ↓             ↓             ↓
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ Backend  │  │   Sui    │  │ Wallet   │
+│ Backend  │  │   Base   │  │ Wallet   │
 │   API    │  │Blockchain│  │  (Sign)  │
 └─────┬────┘  └──────────┘  └──────────┘
       │
@@ -360,6 +360,7 @@ backend/
 - **Flask-CORS** - CORS handling
 - **Flask-Caching** - Response caching
 - **Supabase** - Database + realtime + storage
+- **Base Blockchain** - Settlement layer (Sepolia testnet)
 
 ---
 
@@ -398,6 +399,6 @@ curl http://localhost:5001/health
 
 ---
 
-**Built with ❤️ for the Sui ecosystem**
+**Built with ❤️ for the Base ecosystem**
 
 🚀 **Your Web2.5 prediction market backend is ready!**

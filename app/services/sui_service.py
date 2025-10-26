@@ -94,24 +94,21 @@ class SuiService:
             return []
     
     def _parse_market_data(self, fields: Dict, market_id: str) -> Dict:
-        """Parse market data from blockchain response"""
+        """Parse market data from blockchain response matching smart contract"""
         try:
             return {
                 'id': market_id,
                 'question': fields.get('question', ''),
                 'description': fields.get('description', ''),
-                'end_time': int(fields.get('end_time', 0)),
+                'end_time': int(fields.get('endTime', 0)),
                 'creator': fields.get('creator', ''),
                 'resolved': fields.get('resolved', False),
-                'winning_outcome': int(fields.get('winning_outcome', 0)),
-                'total_liquidity': int(fields.get('total_liquidity', 0)),
-                'outcome_a_shares': int(fields.get('outcome_a_shares', 0)),
-                'outcome_b_shares': int(fields.get('outcome_b_shares', 0)),
-                'volume_24h': int(fields.get('volume_24h', 0)),
-                'created_timestamp': int(fields.get('created_timestamp', 0)),
-                'category': fields.get('category', ''),
-                'image_url': fields.get('image_url', ''),
-                'tags': fields.get('tags', [])
+                'winning_outcome': int(fields.get('winningOutcome', 0)),
+                'total_liquidity': int(fields.get('totalLiquidity', 0)),
+                'outcome_a_shares': int(fields.get('outcomeAShares', 0)),
+                'outcome_b_shares': int(fields.get('outcomeBShares', 0)),
+                'yes_pool': int(fields.get('yesPool', 0)),
+                'no_pool': int(fields.get('noPool', 0))
             }
         except Exception as e:
             print(f"Error parsing market data: {e}")

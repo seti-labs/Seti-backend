@@ -41,7 +41,7 @@ def update_user(address):
         data = request.get_json()
         
         # Update allowed fields
-        allowed_fields = ['username', 'email', 'avatar_url', 'bio']
+        allowed_fields = ['username', 'avatar_url', 'bio']
         for field in allowed_fields:
             if field in data:
                 setattr(user, field, data[field])
@@ -261,6 +261,79 @@ def create_user_session(address):
             'message': 'Session created/updated successfully',
             'user': user.to_dict(),
             'is_new_user': user.total_predictions == 0 and user.markets_created == 0
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/<address>/preferences', methods=['GET'])
+def get_user_preferences(address):
+    """Get user preferences and settings"""
+    try:
+        user = User.query.get(address)
+        
+        if not user:
+            # Create new user with default preferences
+            user = User(address=address)
+            db.session.add(user)
+            db.session.commit()
+        
+        preferences = {
+            'username': user.username,
+            'avatar_url': user.avatar_url,
+            'bio': user.bio,
+            'notification_settings': user.notification_settings or {},
+            'theme_preference': user.theme_preference or 'system',
+            'first_seen': user.first_seen.isoformat() if user.first_seen else None,
+            'last_active': user.last_active.isoformat() if user.last_active else None
+        }
+        
+        return jsonify({'preferences': preferences}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/<address>/preferences', methods=['PUT'])
+def update_user_preferences(address):
+    """Update user preferences and settings"""
+    try:
+        user = User.query.get(address)
+        
+        if not user:
+            user = User(address=address)
+            db.session.add(user)
+        
+        data = request.get_json()
+        
+        # Update preferences
+        if 'username' in data:
+            user.username = data['username']
+        
+        if 'avatar_url' in data:
+            user.avatar_url = data['avatar_url']
+        
+        if 'bio' in data:
+            user.bio = data['bio']
+        
+        if 'notification_settings' in data:
+            user.notification_settings = data['notification_settings']
+        
+        if 'theme_preference' in data:
+            user.theme_preference = data['theme_preference']
+        
+        # Update last_active timestamp
+        user.last_active = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Preferences updated successfully',
+            'preferences': {
+                'username': user.username,
+                'avatar_url': user.avatar_url,
+                'bio': user.bio,
+                'notification_settings': user.notification_settings,
+                'theme_preference': user.theme_preference
+            }
         }), 200
     except Exception as e:
         db.session.rollback()

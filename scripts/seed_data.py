@@ -52,11 +52,8 @@ def seed_database():
                 total_liquidity=10000000000,
                 outcome_a_shares=5000000000,
                 outcome_b_shares=5000000000,
-                volume_24h=1000000000,
-                created_timestamp=now,
-                category='Crypto',
-                image_url='https://example.com/btc.png',
-                tags=['bitcoin', 'crypto', 'price']
+                yes_pool=5000000000,
+                no_pool=5000000000
             ),
             Market(
                 id='0x' + 'b' * 64,
@@ -69,11 +66,8 @@ def seed_database():
                 total_liquidity=5000000000,
                 outcome_a_shares=2000000000,
                 outcome_b_shares=3000000000,
-                volume_24h=500000000,
-                created_timestamp=now - 86400,
-                category='Crypto',
-                image_url='https://example.com/eth.png',
-                tags=['ethereum', 'merge', 'pos']
+                yes_pool=2000000000,
+                no_pool=3000000000
             ),
             Market(
                 id='0x' + 'c' * 64,
@@ -85,11 +79,8 @@ def seed_database():
                 total_liquidity=8000000000,
                 outcome_a_shares=4500000000,
                 outcome_b_shares=3500000000,
-                volume_24h=800000000,
-                created_timestamp=now,
-                category='Stocks',
-                image_url='https://example.com/tsla.png',
-                tags=['tesla', 'stocks', 'price']
+                yes_pool=4500000000,
+                no_pool=3500000000
             )
         ]
         
@@ -104,8 +95,6 @@ def seed_database():
                 user_address='0x' + '1' * 64,
                 outcome=1,
                 amount=1000000000,
-                price=550000000,
-                shares=500000000,
                 timestamp=now
             ),
             Prediction(
@@ -114,18 +103,12 @@ def seed_database():
                 user_address='0x' + '2' * 64,
                 outcome=0,
                 amount=500000000,
-                price=450000000,
-                shares=550000000,
                 timestamp=now
             )
         ]
         
         for prediction in predictions:
             db.session.add(prediction)
-        
-        # Update user stats
-        for user in users:
-            user.update_stats()
         
         db.session.commit()
         

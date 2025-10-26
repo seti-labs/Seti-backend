@@ -17,6 +17,9 @@ python-dotenv==1.0.0
 # HTTP Requests
 requests==2.31.0
 
+# Blockchain
+web3==6.15.1
+
 # Data Processing (optional)
 # pandas==2.1.4
 

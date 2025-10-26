@@ -104,36 +104,27 @@ def create_prediction():
         if existing:
             return jsonify({'error': 'User already has a prediction on this outcome for this market'}), 409
         
-        # Calculate price and shares (simplified)
-        total_shares = market.outcome_a_shares + market.outcome_b_shares
-        if outcome_int == 1:  # YES
-            price = market.outcome_a_shares / total_shares if total_shares > 0 else 0.5
-        else:  # NO
-            price = market.outcome_b_shares / total_shares if total_shares > 0 else 0.5
-        
-        shares = int(data['amount'] / price) if price > 0 else 0
-        
-        # Create prediction
+        # Create prediction matching smart contract Bet struct
         prediction = Prediction(
             transaction_hash=transaction_hash,
             market_id=data['market_id'],
             user_address=data['user_address'],
             outcome=outcome_int,
             amount=data['amount'],
-            price=int(price * 1000000000),  # Convert to integer (multiply by 1B)
-            shares=shares,
+            claimed=False,  # Matching smart contract Bet.claimed
             timestamp=int(datetime.utcnow().timestamp())
         )
         
         db.session.add(prediction)
         
-        # Update market liquidity
+        # Update market liquidity matching smart contract
         if outcome_int == 1:  # YES
-            market.outcome_a_shares += shares
+            market.yes_pool += data['amount']
+            market.outcome_b_shares += data['amount']
         else:  # NO
-            market.outcome_b_shares += shares
+            market.no_pool += data['amount']
+            market.outcome_a_shares += data['amount']
         market.total_liquidity += data['amount']
-        market.volume_24h += data['amount']
         
         # Update or create user
         user = User.query.get(data['user_address'])
@@ -155,8 +146,7 @@ def create_prediction():
                 'market_id': data['market_id'],
                 'outcome': data['outcome'],
                 'amount': data['amount'],
-                'shares': shares,
-                'price': price,
+                'claimed': False,
                 'timestamp': prediction.timestamp
             }
         }), 201

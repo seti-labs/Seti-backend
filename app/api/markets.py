@@ -1,11 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app import db, cache
 from app.models import Market, User
-from app.services.sui_service import SuiService
+from app.services.contract_service import contract_service
 from sqlalchemy import desc, func
 
 bp = Blueprint('markets', __name__)
-sui_service = SuiService()
 
 @bp.route('', methods=['GET'])
 @cache.cached(timeout=60, query_string=True)
@@ -41,12 +40,14 @@ def get_markets():
             )
         
         # Apply sorting
-        if sort_by == 'volume_24h':
-            query = query.order_by(desc(Market.volume_24h))
-        elif sort_by == 'total_liquidity':
+        if sort_by == 'total_liquidity':
             query = query.order_by(desc(Market.total_liquidity))
+        elif sort_by == 'yes_pool':
+            query = query.order_by(desc(Market.yes_pool))
+        elif sort_by == 'no_pool':
+            query = query.order_by(desc(Market.no_pool))
         else:
-            query = query.order_by(desc(Market.created_timestamp))
+            query = query.order_by(desc(Market.end_time))
         
         # Paginate
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -86,7 +87,7 @@ def get_market(market_id):
         
         if not market:
             # Try fetching from blockchain
-            market_data = sui_service.get_market(market_id)
+            market_data = contract_service.get_market(int(market_id))
             if market_data:
                 market = Market(**market_data)
                 db.session.add(market)
@@ -117,7 +118,7 @@ def get_market(market_id):
 def sync_markets():
     """Sync markets from blockchain (admin endpoint)"""
     try:
-        markets_data = sui_service.fetch_all_markets()
+        markets_data = contract_service.fetch_all_markets()
         
         synced_count = 0
         for market_data in markets_data:
@@ -207,22 +208,20 @@ def create_market():
         import time
         market_id = f"market_{int(time.time())}_{data['creator'][:8]}"
         
-        # Create market
+        # Create market matching smart contract structure
         market = Market(
             id=market_id,
             question=data['question'],
             description=data['description'],
-            category=data['category'],
             creator=data['creator'],
             end_time=int(end_time.timestamp()),
-            image_url=data.get('image_url'),
-            tags=data.get('tags', []),
-            outcome_a_shares=1000000000,  # Default 1B shares for YES
-            outcome_b_shares=1000000000,  # Default 1B shares for NO
-            total_liquidity=2000000000,   # Default 2B total liquidity
-            created_timestamp=int(time.time()),
             resolved=False,
-            winning_outcome=None
+            winning_outcome=None,
+            total_liquidity=0,
+            outcome_a_shares=0,  # NO shares
+            outcome_b_shares=0,  # YES shares  
+            yes_pool=0,
+            no_pool=0
         )
         
         db.session.add(market)
