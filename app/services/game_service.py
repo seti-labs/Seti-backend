@@ -13,7 +13,8 @@ class GameService:
         self.base_url = 'https://api-football-v1.p.rapidapi.com/v3'
         self.headers = {
             'X-RapidAPI-Key': self.api_key,
-            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
+            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
+            'Accept': 'application/json'
         } if self.api_key else {}
         
         # Valid leagues for auto-creation
@@ -26,11 +27,25 @@ class GameService:
             return None
         try:
             url = f"{self.base_url}/{endpoint}"
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response = requests.get(
+                url, 
+                headers=self.headers, 
+                params=params, 
+                timeout=10,
+                allow_redirects=True
+            )
             response.raise_for_status()
+            
+            # Log response headers for debugging
+            if os.getenv('DEBUG_API_REQUESTS'):
+                print(f"Response headers: {dict(response.headers)}")
+            
             return response.json()
         except Exception as e:
             print(f"API request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response status: {e.response.status_code}")
+                print(f"Response text: {e.response.text[:500]}")
             return None
     
     def fetch_upcoming_fixtures(self, days_ahead: int = 7) -> List[Dict]:
