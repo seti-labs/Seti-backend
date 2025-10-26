@@ -3,7 +3,7 @@ import requests
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from app import db
-from app.models.game import Game
+from app.models import Game
 
 class GameService:
     """Service for fetching and managing sports fixtures from API-Sports"""

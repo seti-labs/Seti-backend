@@ -4,6 +4,7 @@ from .user import User
 from .liquidity import LiquidityProvider, LiquidityWithdrawal
 from .comment import Comment, Favorite
 from .notification import Notification, ActivityFeed
+from .game import Game
 
 __all__ = [
     'Market', 
@@ -14,6 +15,7 @@ __all__ = [
     'Comment',
     'Favorite',
     'Notification',
-    'ActivityFeed'
+    'ActivityFeed',
+    'Game'
 ]
 

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app import db
-from app.models.game import Game
+from app.models import Game
 from app.services.game_service import game_service
 from sqlalchemy import func
 

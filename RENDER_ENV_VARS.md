@@ -47,6 +47,11 @@ PORT=10000
 HOST=0.0.0.0
 ```
 
+### 7. Sports API (RapidAPI)
+```
+RAPIDAPI_KEY=e3d1631f20msh722e0f5c534f1d3p16dd9djsn0cfbb429ada3
+```
+
 ## 🔄 After Adding Environment Variables
 
 1. Save the environment variables
