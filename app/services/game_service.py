@@ -73,11 +73,11 @@ class GameService:
         if fixture['fixture']['status']['short'] != 'FT':
             return None
         
-        hs = fixture['goals']['home']
-        as = fixture['goals']['away']
-        winner = 'home' if hs > as else ('away' if as > hs else 'draw')
+        home_score = fixture['goals']['home']
+        away_score = fixture['goals']['away']
+        winner = 'home' if home_score > away_score else ('away' if away_score > home_score else 'draw')
         
-        return {'fixture_id': fixture_id, 'home_score': hs, 'away_score': as, 'winner': winner}
+        return {'fixture_id': fixture_id, 'home_score': home_score, 'away_score': away_score, 'winner': winner}
     
     def sync_game_to_db(self, fixture_data: Dict) -> Optional[Game]:
         """Sync fixture to database"""
