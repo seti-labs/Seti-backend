@@ -8,6 +8,7 @@ from app.api.analytics import bp as analytics_bp
 from app.api.comments import bp as comments_bp
 from app.api.favorites import bp as favorites_bp
 from app.api.admin import bp as admin_bp
+from app.api.prediction_tracking import bp as prediction_tracking_bp
 from app.api import games
 
 __all__ = ['games']

@@ -2,7 +2,9 @@ from flask import Blueprint, request, jsonify
 from app import db, cache
 from app.models import Market, User
 from app.services.contract_service import contract_service
+from app.services.market_sports_service import market_sports_service
 from sqlalchemy import desc, func
+from datetime import datetime
 
 bp = Blueprint('markets', __name__)
 
@@ -63,6 +65,16 @@ def get_markets():
             market_dict['prediction_count'] = prediction_count
             
             markets.append(market_dict)
+        
+        # Add live sports data for sports markets
+        try:
+            live_scores = market_sports_service.get_live_scores_for_markets(pagination.items)
+            for market_dict in markets:
+                if market_dict['id'] in live_scores:
+                    market_dict['live_sports'] = live_scores[market_dict['id']]
+        except Exception as e:
+            print(f"Error fetching live sports data: {e}")
+            # Continue without live sports data if there's an error
         
         return jsonify({
             'markets': markets,
@@ -247,7 +259,32 @@ def create_market():
             'message': 'Market created successfully',
             'market': market.to_dict()
         }), 201
+        
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/<int:market_id>/live-sports', methods=['GET'])
+def get_market_live_sports(market_id):
+    """Get live sports data for a specific market"""
+    try:
+        market = Market.query.get(market_id)
+        if not market:
+            return jsonify({'error': 'Market not found'}), 404
+        
+        live_data = market_sports_service.update_market_with_live_score(market_id)
+        
+        if live_data:
+            return jsonify({
+                'success': True,
+                'live_sports': live_data
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No live sports data available for this market'
+            }), 404
+            
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 

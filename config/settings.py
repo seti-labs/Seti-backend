@@ -28,7 +28,7 @@ class Config:
     
     # CORS - Allow all origins for now, restrict in production
     # Include Seti frontend domains
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,http://localhost:3000,http://localhost:5173').split(',') if os.getenv('CORS_ORIGINS') != '*' else '*'
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,https://seti-live.vercel.app,https://seti-mvp.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:8080').split(',') if os.getenv('CORS_ORIGINS') != '*' else '*'
     
     # Caching
     CACHE_TYPE = 'redis' if os.getenv('REDIS_URL') else 'simple'

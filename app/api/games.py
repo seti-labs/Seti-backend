@@ -111,3 +111,19 @@ def get_countries():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@games_bp.route('/games/create-markets', methods=['POST'])
+def create_markets_from_games():
+    """Create prediction markets from games without markets"""
+    try:
+        from app.services.market_creator_service import market_creator_service
+        
+        created = market_creator_service.create_markets_for_all_games()
+        
+        return jsonify({
+            'message': f'Created {created} markets from games',
+            'created': created
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

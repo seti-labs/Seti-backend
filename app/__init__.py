@@ -27,7 +27,7 @@ def create_app(config_name='default'):
         CORS(app, origins=app.config['CORS_ORIGINS'])
     
     # Register blueprints
-    from app.api import markets, predictions, users, analytics, comments, favorites, admin, games
+    from app.api import markets, predictions, users, analytics, comments, favorites, admin, games, prediction_tracking
     app.register_blueprint(markets.bp, url_prefix='/api/v1/markets')
     app.register_blueprint(predictions.bp, url_prefix='/api/v1/predictions')
     app.register_blueprint(users.bp, url_prefix='/api/v1/users')
@@ -35,6 +35,7 @@ def create_app(config_name='default'):
     app.register_blueprint(comments.bp, url_prefix='/api/v1/comments')
     app.register_blueprint(favorites.bp, url_prefix='/api/v1/favorites')
     app.register_blueprint(admin.bp, url_prefix='/api/v1/admin')
+    app.register_blueprint(prediction_tracking.bp, url_prefix='/api/v1/tracking')
     app.register_blueprint(games.games_bp, url_prefix='/api/v1')
     
     # Health check endpoint

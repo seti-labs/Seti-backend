@@ -6,19 +6,16 @@ from app import db
 from app.models import Game
 
 class GameService:
-    """Service for fetching and managing sports fixtures from API-Sports"""
+    """Service for fetching and managing sports fixtures from Sportsbook API"""
     
     def __init__(self):
         self.api_key = os.getenv('RAPIDAPI_KEY')
-        self.base_url = 'https://api-football-v1.p.rapidapi.com/v3'
+        self.base_url = 'https://sportsbook-api2.p.rapidapi.com'
         self.headers = {
             'X-RapidAPI-Key': self.api_key,
-            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
+            'X-RapidAPI-Host': 'sportsbook-api2.p.rapidapi.com',
             'Accept': 'application/json'
         } if self.api_key else {}
-        
-        # Valid leagues for auto-creation
-        self.allowed_league_ids = [39, 140, 78, 135, 61]  # PL, La Liga, Bundesliga, Serie A, Ligue 1
     
     def _make_request(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
         """Make API request with error handling"""
@@ -34,12 +31,14 @@ class GameService:
                 timeout=10,
                 allow_redirects=True
             )
-            response.raise_for_status()
             
-            # Log response headers for debugging
+            # Log response for debugging
             if os.getenv('DEBUG_API_REQUESTS'):
+                print(f"Request URL: {url}")
+                print(f"Response status: {response.status_code}")
                 print(f"Response headers: {dict(response.headers)}")
             
+            response.raise_for_status()
             return response.json()
         except Exception as e:
             print(f"API request failed: {e}")
@@ -49,82 +48,141 @@ class GameService:
             return None
     
     def fetch_upcoming_fixtures(self, days_ahead: int = 7) -> List[Dict]:
-        """Fetch upcoming football fixtures"""
-        today = datetime.utcnow().date()
-        params = {'date': today.isoformat(), 'league': ','.join(map(str, self.allowed_league_ids))}
-        data = self._make_request('fixtures', params)
-        if not data or 'response' not in data:
+        """Fetch upcoming sports events from Sportsbook API"""
+        data = self._make_request('v0/advantages', {'type': 'ARBITRAGE'})
+        
+        if not data or 'advantages' not in data:
             return []
         
         valid_fixtures = []
-        for fixture in data['response']:
+        seen_events = set()
+        
+        for advantage in data.get('advantages', []):
+            market = advantage.get('market', {})
+            event = market.get('event', {})
+            
+            # Skip if no event data
+            if not event:
+                continue
+            
+            # Create unique key for event
+            event_key = event.get('key')
+            if not event_key or event_key in seen_events:
+                continue
+            seen_events.add(event_key)
+            
+            # Parse event data
             try:
+                participants = event.get('participants', [])
+                if len(participants) < 2:
+                    continue
+                
+                home_team = participants[0].get('name', 'Team 1')
+                away_team = participants[1].get('name', 'Team 2')
+                
+                # Parse start time
+                start_time_str = event.get('startTime')
+                if not start_time_str:
+                    continue
+                
+                # Parse with timezone
+                if start_time_str.endswith('Z'):
+                    kickoff_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                else:
+                    kickoff_time = datetime.fromisoformat(start_time_str)
+                
+                # Make sure we're comparing with timezone-aware datetime
+                now = datetime.utcnow().replace(tzinfo=kickoff_time.tzinfo)
+                
+                # Skip past events
+                if kickoff_time < now:
+                    continue
+                
+                # Get competition info
+                competition = event.get('competitionInstance', {}).get('competition', {})
+                league = competition.get('name', 'Unknown League')
+                
+                # Determine status based on start time
+                now = datetime.utcnow().replace(tzinfo=kickoff_time.tzinfo)
+                time_diff = kickoff_time - now
+                if time_diff.days < 0:
+                    status = 'FT'  # Finished
+                elif time_diff.total_seconds() < 3600:  # Less than 1 hour
+                    status = 'LIVE'
+                else:
+                    status = 'NS'  # Not started
+                
                 fixture_data = {
-                    'fixture_id': fixture['fixture']['id'],
-                    'home_team': fixture['teams']['home']['name'],
-                    'away_team': fixture['teams']['away']['name'],
-                    'league': fixture['league']['name'],
-                    'league_id': fixture['league']['id'],
-                    'kickoff_time': datetime.fromisoformat(fixture['fixture']['date'].replace('Z', '+00:00')),
-                    'status': fixture['fixture']['status']['short'],
-                    'home_score': fixture['goals']['home'],
-                    'away_score': fixture['goals']['away'],
-                    'api_data': fixture
+                    'fixture_id': hash(event_key) % 1000000,  # Create unique ID from key
+                    'home_team': home_team,
+                    'away_team': away_team,
+                    'league': league,
+                    'league_id': hash(competition.get('key', '')) % 100000,
+                    'kickoff_time': kickoff_time,
+                    'status': status,
+                    'home_score': None,
+                    'away_score': None,
+                    'api_data': advantage
                 }
-                if fixture_data['status'] in ['NS', 'LIVE', 'HT', 'FT']:
-                    valid_fixtures.append(fixture_data)
+                
+                valid_fixtures.append(fixture_data)
+                
             except Exception as e:
-                print(f"Error parsing fixture: {e}")
+                print(f"Error parsing event: {e}")
+                continue
+        
         return valid_fixtures
     
     def get_final_score(self, fixture_id: int) -> Optional[Dict]:
         """Get final score for a completed fixture"""
-        params = {'id': fixture_id}
-        data = self._make_request('fixtures', params)
-        if not data or 'response' not in data:
-            return None
-        
-        fixture = data['response'][0]
-        if fixture['fixture']['status']['short'] != 'FT':
-            return None
-        
-        home_score = fixture['goals']['home']
-        away_score = fixture['goals']['away']
-        winner = 'home' if home_score > away_score else ('away' if away_score > home_score else 'draw')
-        
-        return {'fixture_id': fixture_id, 'home_score': home_score, 'away_score': away_score, 'winner': winner}
+        # Note: Sportsbook API doesn't provide live scores in this endpoint
+        # You would need to use a different endpoint for live scores
+        return None
     
     def sync_game_to_db(self, fixture_data: Dict) -> Optional[Game]:
         """Sync fixture to database"""
         try:
+            # Convert timezone-aware datetime to naive datetime
+            kickoff_time = fixture_data['kickoff_time']
+            if kickoff_time.tzinfo is not None:
+                kickoff_time = kickoff_time.replace(tzinfo=None)
+            
             game = Game.query.filter_by(fixture_id=fixture_data['fixture_id']).first()
             if game:
+                # Update existing game
                 game.home_score = fixture_data.get('home_score')
                 game.away_score = fixture_data.get('away_score')
                 game.status = fixture_data['status']
+                game.updated_at = datetime.utcnow()
             else:
-                game = Game(**{k: v for k, v in fixture_data.items() if k != 'api_data'})
+                # Create new game
+                game = Game(
+                    fixture_id=fixture_data['fixture_id'],
+                    home_team=fixture_data['home_team'],
+                    away_team=fixture_data['away_team'],
+                    league=fixture_data['league'],
+                    league_id=fixture_data.get('league_id'),
+                    kickoff_time=kickoff_time,
+                    status=fixture_data['status'],
+                    home_score=fixture_data.get('home_score'),
+                    away_score=fixture_data.get('away_score'),
+                    api_data=fixture_data.get('api_data')
+                )
                 db.session.add(game)
+            
             db.session.commit()
             return game
         except Exception as e:
             db.session.rollback()
             print(f"Error syncing game: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def fetch_countries(self) -> List[Dict]:
         """Fetch all countries from API"""
-        data = self._make_request('teams/countries', None)
-        if not data or 'response' not in data:
-            return []
-        
-        countries = []
-        for country in data['response']:
-            countries.append({
-                'name': country['name'],
-                'code': country.get('code'),
-                'flag': country.get('flag')
-            })
-        return countries
+        # Sportsbook API doesn't provide countries endpoint
+        # Return empty list or mock data
+        return []
 
 game_service = GameService()

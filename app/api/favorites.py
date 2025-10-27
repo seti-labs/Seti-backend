@@ -130,7 +130,7 @@ def check_favorite(user_address, market_id):
         return jsonify({'error': str(e)}), 500
 
 @bp.route('/<user_address>/toggle', methods=['POST'])
-def toggle_favorite(user_address, market_id):
+def toggle_favorite(user_address):
     """Toggle favorite status for a market"""
     try:
         data = request.get_json()

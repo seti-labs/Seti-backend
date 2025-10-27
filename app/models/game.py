@@ -23,7 +23,7 @@ class Game(db.Model):
     away_score = db.Column(db.Integer, nullable=True)
     
     # Linked market
-    market_id = db.Column(db.Integer, db.ForeignKey('markets.id'), nullable=True, unique=True)
+    market_id = db.Column(db.String(66), db.ForeignKey('markets.id', ondelete='SET NULL'), nullable=True, unique=True)
     
     # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

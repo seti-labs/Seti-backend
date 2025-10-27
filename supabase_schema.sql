@@ -141,6 +141,24 @@ CREATE TABLE IF NOT EXISTS activity_feed (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Games table (for sports fixtures linked to markets)
+CREATE TABLE IF NOT EXISTS games (
+    id SERIAL PRIMARY KEY,
+    fixture_id INTEGER UNIQUE NOT NULL,
+    home_team VARCHAR(200) NOT NULL,
+    away_team VARCHAR(200) NOT NULL,
+    league VARCHAR(100) NOT NULL,
+    league_id INTEGER,
+    kickoff_time TIMESTAMP NOT NULL,
+    status VARCHAR(50) DEFAULT 'scheduled',
+    home_score INTEGER,
+    away_score INTEGER,
+    market_id VARCHAR(66) REFERENCES markets(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    api_data JSONB
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_markets_category ON markets(category);
 CREATE INDEX IF NOT EXISTS idx_markets_resolved ON markets(resolved);
@@ -153,6 +171,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_market_id ON comments(market_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_user_address ON favorites(user_address);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_address ON notifications(user_address);
 CREATE INDEX IF NOT EXISTS idx_activity_feed_timestamp ON activity_feed(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_games_fixture_id ON games(fixture_id);
+CREATE INDEX IF NOT EXISTS idx_games_kickoff_time ON games(kickoff_time);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE markets ENABLE ROW LEVEL SECURITY;
