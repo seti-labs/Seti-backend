@@ -28,6 +28,71 @@ def get_user(address):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@bp.route('/<address>/preferences', methods=['GET'])
+def get_preferences(address):
+    """Get user preferences by address"""
+    try:
+        user = User.query.get(address)
+        
+        if not user:
+            # Return default preferences for new users
+            default_preferences = {
+                'theme': 'auto',
+                'notifications': True,
+                'email_notifications': False,
+                'language': 'en',
+                'currency': 'USD',
+                'timezone': 'UTC'
+            }
+            return jsonify({'preferences': default_preferences}), 200
+        
+        # Get user preferences from user data
+        preferences = {
+            'theme': getattr(user, 'theme_preference', 'auto'),
+            'notifications': getattr(user, 'notifications_enabled', True),
+            'email_notifications': getattr(user, 'email_notifications', False),
+            'language': getattr(user, 'language', 'en'),
+            'currency': getattr(user, 'currency', 'USD'),
+            'timezone': getattr(user, 'timezone', 'UTC')
+        }
+        
+        return jsonify({'preferences': preferences}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/<address>/preferences', methods=['PUT'])
+def update_preferences(address):
+    """Update user preferences"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        user = User.query.get(address)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Update user preferences
+        if 'theme' in data:
+            user.theme_preference = data['theme']
+        if 'notifications' in data:
+            user.notifications_enabled = data['notifications']
+        if 'email_notifications' in data:
+            user.email_notifications = data['email_notifications']
+        if 'language' in data:
+            user.language = data['language']
+        if 'currency' in data:
+            user.currency = data['currency']
+        if 'timezone' in data:
+            user.timezone = data['timezone']
+        
+        db.session.commit()
+        
+        return jsonify({'message': 'Preferences updated successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @bp.route('/<address>', methods=['PUT'])
 def update_user(address):
     """Update user profile"""
