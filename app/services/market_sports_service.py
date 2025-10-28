@@ -226,11 +226,11 @@ class MarketSportsService:
                 return live_scores
             
             advantages = advantages_data['advantages']
-        
-        for market in markets:
-            if not market.category or 'sport' not in market.category.lower():
-                continue
             
+            for market in markets:
+                if not market.category or 'sport' not in market.category.lower():
+                    continue
+                
                 # Try to match market with sportsbook data
                 market_data = self._find_matching_sportsbook_market(market, advantages)
                 if market_data:
