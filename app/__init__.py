@@ -31,9 +31,9 @@ def create_app(config_name='default'):
     
     # Security middleware temporarily disabled for debugging
     
-    # Configure CORS for development
+    # Configure CORS using settings
     CORS(app, 
-         origins=['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
+         origins=app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080']),
          allow_headers=['Content-Type', 'Authorization', 'X-Admin-Key'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          supports_credentials=True)

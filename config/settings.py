@@ -31,7 +31,7 @@ class Config:
     PREDICTION_MARKET_CONTRACT_ADDRESS = os.getenv('PREDICTION_MARKET_CONTRACT_ADDRESS', '0x63c0c19a282a1B52b07dD5a65b58948a07DAE32B')
     
     # Enhanced CORS Configuration - Restrict in production
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,https://seti-live.vercel.app,https://seti-mvp.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:8080').split(',') if os.getenv('CORS_ORIGINS') != '*' else ['http://localhost:3000', 'http://localhost:5173']
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,https://setilive.vercel.app,https://seti-mvp.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:8080').split(',') if os.getenv('CORS_ORIGINS') != '*' else ['http://localhost:3000', 'http://localhost:5173']
     
     # Caching
     CACHE_TYPE = 'redis' if os.getenv('REDIS_URL') else 'simple'
