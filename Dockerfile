@@ -19,9 +19,9 @@ COPY . .
 RUN useradd -m -u 1000 seti && chown -R seti:seti /app
 USER seti
 
-# Expose port
-EXPOSE $PORT
+# Expose port (Render will set this)
+EXPOSE 5000
 
-# Run with gunicorn
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:$PORT", "--timeout", "120", "run:app"]
+# Run the application
+CMD ["python", "run.py"]
 
