@@ -1,3 +1,7 @@
+"""
+Enhanced configuration with security settings
+"""
+
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -5,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    """Base configuration"""
+    """Base configuration with enhanced security"""
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
@@ -26,9 +30,8 @@ class Config:
     BASE_RPC_URL = os.getenv('BASE_RPC_URL', 'https://base-sepolia.api.onfinality.io/public')
     PREDICTION_MARKET_CONTRACT_ADDRESS = os.getenv('PREDICTION_MARKET_CONTRACT_ADDRESS', '0x63c0c19a282a1B52b07dD5a65b58948a07DAE32B')
     
-    # CORS - Allow all origins for now, restrict in production
-    # Include Seti frontend domains
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,https://seti-live.vercel.app,https://seti-mvp.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:8080').split(',') if os.getenv('CORS_ORIGINS') != '*' else '*'
+    # Enhanced CORS Configuration - Restrict in production
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://seti-backend.onrender.com,https://seti-live.vercel.app,https://seti-mvp.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:8080').split(',') if os.getenv('CORS_ORIGINS') != '*' else ['http://localhost:3000', 'http://localhost:5173']
     
     # Caching
     CACHE_TYPE = 'redis' if os.getenv('REDIS_URL') else 'simple'
@@ -42,21 +45,64 @@ class Config:
     # Pagination
     DEFAULT_PAGE_SIZE = 20
     MAX_PAGE_SIZE = 100
+    
+    # Security Settings
+    SECURITY_HEADERS = True
+    RATE_LIMIT_ENABLED = True
+    RATE_LIMIT_REQUESTS = 100
+    RATE_LIMIT_WINDOW = 3600  # 1 hour
+    BLOCK_SUSPICIOUS_REQUESTS = True
+    CORS_STRICT = True
+    
+    # Admin Authentication
+    ADMIN_KEY = os.getenv('ADMIN_KEY', 'admin-secret-key-change-in-production')
+    
+    # JWT Settings (for future implementation)
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', SECRET_KEY)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+    
+    # External API Keys
+    RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', '')
+    
+    # File Upload Settings
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    
+    # Logging
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_FILE = os.getenv('LOG_FILE', 'app.log')
 
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     TESTING = False
+    
+    # Relaxed security for development
+    RATE_LIMIT_REQUESTS = 1000
+    BLOCK_SUSPICIOUS_REQUESTS = False
+    CORS_STRICT = False
 
 class ProductionConfig(Config):
-    """Production configuration"""
+    """Production configuration with strict security"""
     DEBUG = False
     TESTING = False
+    
+    # Strict security settings
+    RATE_LIMIT_REQUESTS = 50
+    RATE_LIMIT_WINDOW = 3600
+    BLOCK_SUSPICIOUS_REQUESTS = True
+    CORS_STRICT = True
 
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///test.db'
+    
+    # Disable security features for testing
+    RATE_LIMIT_ENABLED = False
+    BLOCK_SUSPICIOUS_REQUESTS = False
 
 config = {
     'development': DevelopmentConfig,
@@ -64,4 +110,3 @@ config = {
     'testing': TestingConfig,
     'default': DevelopmentConfig
 }
-

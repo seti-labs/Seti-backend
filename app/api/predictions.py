@@ -55,11 +55,7 @@ def get_predictions():
 def get_prediction(prediction_id):
     """Get a specific prediction by ID"""
     try:
-        prediction = Prediction.query.get(prediction_id)
-        
-        if not prediction:
-            return jsonify({'error': 'Prediction not found'}), 404
-        
+        prediction = Prediction.query.get_or_404(prediction_id)
         return jsonify({'prediction': prediction.to_dict()}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -69,6 +65,9 @@ def create_prediction():
     """Create a new prediction record"""
     try:
         data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
         
         # Validate required fields
         required_fields = ['market_id', 'user_address', 'outcome', 'amount']
@@ -116,67 +115,13 @@ def create_prediction():
         )
         
         db.session.add(prediction)
-        
-        # Update market liquidity matching smart contract
-        if outcome_int == 1:  # YES
-            market.yes_pool += data['amount']
-            market.outcome_b_shares += data['amount']
-        else:  # NO
-            market.no_pool += data['amount']
-            market.outcome_a_shares += data['amount']
-        market.total_liquidity += data['amount']
-        
-        # Update or create user
-        user = User.query.get(data['user_address'])
-        if not user:
-            user = User(address=data['user_address'])
-            db.session.add(user)
-        
-        # Update user stats and activity
-        user.update_stats()
-        user.last_active = datetime.utcnow()
-        
         db.session.commit()
         
         return jsonify({
             'message': 'Prediction created successfully',
-            'prediction': prediction.to_dict(),
-            'receipt': {
-                'transaction_hash': transaction_hash,
-                'market_id': data['market_id'],
-                'outcome': data['outcome'],
-                'amount': data['amount'],
-                'claimed': False,
-                'timestamp': prediction.timestamp
-            }
+            'prediction': prediction.to_dict()
         }), 201
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
-@bp.route('/recent', methods=['GET'])
-def get_recent_predictions():
-    """Get recent predictions across all markets"""
-    try:
-        limit = min(request.args.get('limit', 50, type=int), 100)
-        
-        predictions = Prediction.query.order_by(
-            desc(Prediction.timestamp)
-        ).limit(limit).all()
-        
-        prediction_list = []
-        for prediction in predictions:
-            pred_dict = prediction.to_dict()
-            # Include market info
-            market = Market.query.get(prediction.market_id)
-            if market:
-                pred_dict['market'] = {
-                    'question': market.question,
-                    'category': market.category
-                }
-            prediction_list.append(pred_dict)
-        
-        return jsonify({'predictions': prediction_list}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-

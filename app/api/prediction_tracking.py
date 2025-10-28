@@ -77,10 +77,24 @@ def get_market_analytics(market_id):
 def get_active_predictions():
     """Get all active predictions across all users"""
     try:
-        # Get all predictions for active markets
-        active_predictions = db.session.query(Prediction).join(Market).filter(
+        # Get query parameters for filtering
+        user_address = request.args.get('user_address')
+        market_id = request.args.get('market_id')
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        
+        # Build query
+        query = db.session.query(Prediction).join(Market).filter(
             Market.resolved == False
-        ).all()
+        )
+        
+        if user_address:
+            query = query.filter(Prediction.user_address == user_address)
+        if market_id:
+            query = query.filter(Prediction.market_id == market_id)
+        
+        # Apply pagination
+        active_predictions = query.offset(offset).limit(limit).all()
         
         results = []
         for prediction in active_predictions:
@@ -99,7 +113,83 @@ def get_active_predictions():
         
         return jsonify({
             'success': True,
-            'predictions': results
+            'predictions': results,
+            'total': query.count(),
+            'limit': limit,
+            'offset': offset
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/predictions/live', methods=['GET'])
+def get_live_predictions():
+    """Get live predictions with real-time updates"""
+    try:
+        # Get recent predictions (last 24 hours)
+        from datetime import datetime, timedelta
+        since = datetime.utcnow() - timedelta(hours=24)
+        
+        recent_predictions = db.session.query(Prediction).join(Market).filter(
+            Prediction.timestamp >= since
+        ).order_by(Prediction.timestamp.desc()).limit(100).all()
+        
+        results = []
+        for prediction in recent_predictions:
+            status = prediction_tracking_service.get_prediction_status(prediction)
+            results.append({
+                'prediction_id': prediction.id,
+                'user_address': prediction.user_address,
+                'market_id': prediction.market_id,
+                'market_question': prediction.market.question if prediction.market else 'Unknown Market',
+                'outcome': prediction.outcome,
+                'amount': prediction.amount / 1_000_000_000,
+                'shares': prediction.shares / 1_000_000_000,
+                'timestamp': prediction.timestamp,
+                'status': status,
+                'is_live': not prediction.market.resolved if prediction.market else False
+            })
+        
+        return jsonify({
+            'success': True,
+            'predictions': results,
+            'last_updated': datetime.utcnow().isoformat(),
+            'total_count': len(results)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/predictions/recent', methods=['GET'])
+def get_recent_predictions():
+    """Get most recent predictions for live feed"""
+    try:
+        limit = int(request.args.get('limit', 20))
+        
+        recent_predictions = db.session.query(Prediction).join(Market).order_by(
+            Prediction.timestamp.desc()
+        ).limit(limit).all()
+        
+        results = []
+        for prediction in recent_predictions:
+            status = prediction_tracking_service.get_prediction_status(prediction)
+            results.append({
+                'prediction_id': prediction.id,
+                'user_address': prediction.user_address,
+                'market_id': prediction.market_id,
+                'market_question': prediction.market.question if prediction.market else 'Unknown Market',
+                'outcome': prediction.outcome,
+                'amount': prediction.amount / 1_000_000_000,
+                'shares': prediction.shares / 1_000_000_000,
+                'timestamp': prediction.timestamp,
+                'status': status,
+                'is_resolved': prediction.market.resolved if prediction.market else False
+            })
+        
+        return jsonify({
+            'success': True,
+            'predictions': results,
+            'count': len(results)
         }), 200
         
     except Exception as e:

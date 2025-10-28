@@ -4,41 +4,82 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from app import db
 from app.models import Market, Game
+from .rate_limited_api import RateLimitedAPI
 
 class MarketSportsService:
     """Service for integrating live sports data with prediction markets"""
     
     def __init__(self):
         self.api_key = os.getenv('RAPIDAPI_KEY')
-        self.base_url = 'https://api-football-v1.p.rapidapi.com/v3'
+        self.base_url = 'https://sportsbook-api2.p.rapidapi.com/v0'
         self.headers = {
             'X-RapidAPI-Key': self.api_key,
-            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
+            'X-RapidAPI-Host': 'sportsbook-api2.p.rapidapi.com',
             'Accept': 'application/json'
         } if self.api_key else {}
         
-        # Valid leagues for sports markets
-        self.allowed_league_ids = [39, 140, 78, 135, 61]  # PL, La Liga, Bundesliga, Serie A, Ligue 1
+        # Initialize rate-limited API client
+        self.api_client = RateLimitedAPI(
+            api_key=self.api_key or '',
+            base_url=self.base_url,
+            headers=self.headers
+        )
+        
+        # Valid sports for markets
+        self.allowed_sports = ['AMERICAN_FOOTBALL', 'ICE_HOCKEY', 'BASKETBALL', 'BASEBALL', 'SOCCER']
+        
+        # Test API availability (lazy initialization)
+        self.api_available = False
+        self.last_api_check = datetime.now()
+        self._initialize_api()
+    
+    def _initialize_api(self) -> None:
+        """Lazy initialization of API availability"""
+        try:
+            self.api_available = self._test_api_availability()
+        except Exception as e:
+            print(f"API initialization failed: {e}")
+            self.api_available = False
+    
+    def _test_api_availability(self) -> bool:
+        """Test if the API is available and subscribed"""
+        if not self.api_key:
+            return False
+        
+        try:
+            # Test with the advantages endpoint
+            response = requests.get(
+                f"{self.base_url}/advantages/?type=ARBITRAGE",
+                headers=self.headers,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                print("Sportsbook API is available and working")
+                return True
+            elif response.status_code == 403:
+                print("API key not subscribed to Sportsbook service")
+                return False
+            else:
+                print(f"API test failed with status {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"API availability test failed: {e}")
+            return False
     
     def _make_request(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
-        """Make API request with error handling"""
-        if not self.api_key:
-            print("Warning: RAPIDAPI_KEY not set")
+        """Make API request with rate limiting and caching"""
+        # Check API availability periodically
+        if datetime.now() - self.last_api_check > timedelta(minutes=5):
+            self.api_available = self._test_api_availability()
+            self.last_api_check = datetime.now()
+        
+        if not self.api_available:
+            print("Sportsbook API not available")
             return None
-        try:
-            url = f"{self.base_url}/{endpoint}"
-            response = requests.get(
-                url, 
-                headers=self.headers, 
-                params=params, 
-                timeout=10,
-                allow_redirects=True
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"API request failed: {e}")
-            return None
+            
+        return self.api_client.get(endpoint, params)
     
     def extract_teams_from_question(self, question: str) -> Optional[Dict[str, str]]:
         """Extract team names from market question"""
@@ -57,8 +98,8 @@ class MarketSportsService:
                 home_team = match.group(1).strip()
                 away_team = match.group(2).strip() if len(match.groups()) > 1 else None
                 return {
-                    'home_team': home_team,
-                    'away_team': away_team
+                    'home': home_team,
+                    'away': away_team
                 }
         
         return None
@@ -171,34 +212,86 @@ class MarketSportsService:
         return status_map.get(status, status)
     
     def get_live_scores_for_markets(self, markets: List[Market]) -> Dict[str, Dict]:
-        """Get live scores for a list of markets"""
+        """Get live scores for a list of markets using sportsbook API"""
         live_scores = {}
         
-        for market in markets:
-            if not market.category or 'sport' not in market.category.lower():
-                continue
+        if not self.api_available:
+            print("Sportsbook API not available")
+            return live_scores
+        
+        # Get current advantages/arbitrage opportunities
+        try:
+            advantages_data = self._make_request('advantages/', {'type': 'ARBITRAGE'})
+            if not advantages_data or 'advantages' not in advantages_data:
+                return live_scores
             
-            fixture_data = self.find_matching_fixture(market)
-            if fixture_data:
-                live_scores[market.id] = {
-                    'market_id': market.id,
-                    'market_question': market.question,
-                    'fixture_id': fixture_data['fixture_id'],
-                    'home_team': fixture_data['home_team'],
-                    'away_team': fixture_data['away_team'],
-                    'home_score': fixture_data['home_score'],
-                    'away_score': fixture_data['away_score'],
-                    'league': fixture_data['league'],
-                    'status': fixture_data['status'],
-                    'period': fixture_data['period'],
-                    'elapsed_time': fixture_data.get('elapsed_time'),
-                    'kickoff_time': fixture_data['kickoff_time'].isoformat(),
-                    'is_live': fixture_data['status'] in ['LIVE', 'HT', '1H', '2H'],
-                    'is_finished': fixture_data['status'] in ['FT', 'AET', 'PEN'],
-                    'last_updated': datetime.utcnow().isoformat()
-                }
+            advantages = advantages_data['advantages']
+            
+            for market in markets:
+                if not market.category or 'sport' not in market.category.lower():
+                    continue
+                
+                # Try to match market with sportsbook data
+                market_data = self._find_matching_sportsbook_market(market, advantages)
+                if market_data:
+                    live_scores[market.id] = market_data
+                    
+        except Exception as e:
+            print(f"Error fetching sportsbook data: {e}")
         
         return live_scores
+    
+    def _find_matching_sportsbook_market(self, market: Market, advantages: List[Dict]) -> Optional[Dict]:
+        """Find matching sportsbook market for a prediction market"""
+        teams = self.extract_teams_from_question(market.question)
+        if not teams:
+            return None
+        
+        for advantage in advantages:
+            event = advantage.get('market', {}).get('event', {})
+            participants = event.get('participants', [])
+            
+            if len(participants) >= 2:
+                home_team = participants[0]['name']
+                away_team = participants[1]['name']
+                
+                # Check if teams match (only if both teams are extracted)
+                if teams['away'] and (
+                    (teams['home'].lower() in home_team.lower() and teams['away'].lower() in away_team.lower()) or
+                    (teams['home'].lower() in away_team.lower() and teams['away'].lower() in home_team.lower())
+                ):
+                    
+                    # Extract odds from outcomes
+                    outcomes = advantage.get('outcomes', [])
+                    home_odds = None
+                    away_odds = None
+                    
+                    for outcome in outcomes:
+                        participant_key = outcome.get('participantKey')
+                        payout = outcome.get('payout', 1.0)
+                        
+                        if participant_key == participants[0]['key']:
+                            home_odds = payout
+                        elif participant_key == participants[1]['key']:
+                            away_odds = payout
+                    
+                    return {
+                        'market_id': market.id,
+                        'market_question': market.question,
+                        'event_name': event.get('name', ''),
+                        'home_team': home_team,
+                        'away_team': away_team,
+                        'home_odds': home_odds,
+                        'away_odds': away_odds,
+                        'sport': event.get('participants', [{}])[0].get('sport', ''),
+                        'competition': event.get('competitionInstance', {}).get('competition', {}).get('name', ''),
+                        'start_time': event.get('startTime', ''),
+                        'is_live': False,  # Sportsbook API doesn't provide live status
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'data_source': 'sportsbook_api'
+                    }
+        
+        return None
     
     def update_market_with_live_score(self, market_id: str) -> Optional[Dict]:
         """Update a specific market with live score data"""
@@ -227,6 +320,18 @@ class MarketSportsService:
             'is_finished': fixture_data['status'] in ['FT', 'AET', 'PEN'],
             'last_updated': datetime.utcnow().isoformat()
         }
+    
+    def get_rate_limit_status(self) -> Dict:
+        """Get current API rate limit status"""
+        status = self.api_client.get_rate_limit_status()
+        status['api_available'] = self.api_available
+        status['api_type'] = 'sportsbook'
+        status['last_api_check'] = self.last_api_check.isoformat()
+        return status
+    
+    def clear_api_cache(self) -> None:
+        """Clear API cache"""
+        self.api_client.clear_cache()
 
 # Global instance
 market_sports_service = MarketSportsService()

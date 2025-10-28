@@ -16,18 +16,30 @@ def create_app(config_name='default'):
     # Load configuration
     app.config.from_object(config[config_name])
     
+    # Validate production environment variables
+    if config_name == 'production':
+        import os
+        if not os.getenv('SECRET_KEY'):
+            raise ValueError("SECRET_KEY must be set in production")
+        if not os.getenv('ADMIN_KEY'):
+            raise ValueError("ADMIN_KEY must be set in production")
+    
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     cache.init_app(app)
-    # Configure CORS
-    if app.config['CORS_ORIGINS'] == '*':
-        CORS(app, origins='*')
-    else:
-        CORS(app, origins=app.config['CORS_ORIGINS'])
+    
+    # Security middleware temporarily disabled for debugging
+    
+    # Configure CORS for development
+    CORS(app, 
+         origins=['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
+         allow_headers=['Content-Type', 'Authorization', 'X-Admin-Key'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         supports_credentials=True)
     
     # Register blueprints
-    from app.api import markets, predictions, users, analytics, comments, favorites, admin, games, prediction_tracking
+    from app.api import markets, predictions, users, analytics, comments, favorites, admin, games, prediction_tracking, api_status
     app.register_blueprint(markets.bp, url_prefix='/api/v1/markets')
     app.register_blueprint(predictions.bp, url_prefix='/api/v1/predictions')
     app.register_blueprint(users.bp, url_prefix='/api/v1/users')
