@@ -12,7 +12,7 @@ services:
       - key: CORS_ORIGINS
         value: "https://seti-live.vercel.app,https://setilive.vercel.app,https://seti-backend.onrender.com"
       - key: ENABLE_AUTO_SYNC
-        value: "false"
+        value: "true"
       - key: BASE_NETWORK
         value: "sepolia"
       - key: BASE_RPC_URL

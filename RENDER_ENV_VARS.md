@@ -52,6 +52,11 @@ HOST=0.0.0.0
 RAPIDAPI_KEY=e3d1631f20msh722e0f5c534f1d3p16dd9djsn0cfbb429ada3
 ```
 
+### 8. Auto-Sync Configuration
+```
+ENABLE_AUTO_SYNC=true
+```
+
 ## 🔄 After Adding Environment Variables
 
 1. Save the environment variables
