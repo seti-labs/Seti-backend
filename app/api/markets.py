@@ -23,7 +23,6 @@ def get_markets():
         
         # Build query - only user-created markets (exclude auto-synced Polymarket markets)
         # Filter out markets with IDs starting with 'polymarket_'
-        from sqlalchemy import not_, or_
         query = Market.query.filter(not_(Market.id.like('polymarket_%')))
         
         # Apply filters
@@ -61,8 +60,11 @@ def get_markets():
         # Paginate
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
+        # Additional Python-side filter to ensure no Polymarket markets slip through
+        filtered_items = [m for m in pagination.items if not m.id.startswith('polymarket_')]
+        
         markets = []
-        for market in pagination.items:
+        for market in filtered_items:
             market_dict = market.to_dict()
             market_dict['prices'] = market.calculate_prices()
             
@@ -83,15 +85,19 @@ def get_markets():
             print(f"Error fetching live sports data: {e}")
             # Continue without live sports data if there's an error
         
+        # Recalculate pagination totals after filtering
+        total_filtered = Market.query.filter(not_(Market.id.like('polymarket_%'))).count()
+        pages_filtered = (total_filtered + per_page - 1) // per_page
+        
         return jsonify({
             'markets': markets,
             'pagination': {
                 'page': page,
                 'per_page': per_page,
-                'total': pagination.total,
-                'pages': pagination.pages,
-                'has_next': pagination.has_next,
-                'has_prev': pagination.has_prev
+                'total': total_filtered,
+                'pages': pages_filtered,
+                'has_next': page < pages_filtered,
+                'has_prev': page > 1
             }
         }), 200
     except Exception as e:
