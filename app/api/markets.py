@@ -60,31 +60,35 @@ def get_markets():
         else:
             query = query.order_by(desc(Market.end_time))
         
-        # Paginate
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        # Additional Python-side filter to ensure no Polymarket markets slip through
+        # CRITICAL: Filter out Polymarket markets BEFORE pagination to ensure they're never returned
         # This is a safety net in case the SQLAlchemy filter doesn't work as expected
-        # Filter by checking if ID starts with 'polymarket_' (case-insensitive)
         def is_polymarket_market(market_id: str) -> bool:
             """Check if a market ID is a Polymarket-synced market"""
-            market_id_lower = market_id.lower()
+            if not market_id:
+                return False
+            market_id_lower = str(market_id).lower()
             return market_id_lower.startswith('polymarket_') or 'polymarket_' in market_id_lower
         
-        filtered_items = [m for m in pagination.items if not is_polymarket_market(m.id)]
+        # Get all results and filter in Python before pagination
+        all_markets = query.all()
+        filtered_markets = [m for m in all_markets if not is_polymarket_market(m.id)]
         
-        # Log any Polymarket markets that slipped through (for debugging)
-        polymarket_markets = [m for m in pagination.items if is_polymarket_market(m.id)]
+        # Log any Polymarket markets that were filtered out
+        polymarket_markets = [m for m in all_markets if is_polymarket_market(m.id)]
         if polymarket_markets:
-            print(f"⚠️ WARNING: {len(polymarket_markets)} Polymarket markets found in query results (will be filtered out)")
+            print(f"⚠️ WARNING: {len(polymarket_markets)} Polymarket markets filtered out")
             print(f"   Sample IDs: {[m.id for m in polymarket_markets[:3]]}")
         
-        print(f"DEBUG: Total items from pagination: {len(pagination.items)}, After filter: {len(filtered_items)}")
-        print(f"DEBUG: First few market IDs from pagination: {[m.id for m in pagination.items[:5]]}")
-        print(f"DEBUG: First few market IDs after filter: {[m.id for m in filtered_items[:5]]}")
+        # Apply pagination to filtered results manually
+        total_filtered = len(filtered_markets)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_markets = filtered_markets[start_idx:end_idx]
+        
+        print(f"DEBUG: Total markets before filter: {len(all_markets)}, After filter: {total_filtered}, Paginated: {len(paginated_markets)}")
         
         markets = []
-        for market in filtered_items:
+        for market in paginated_markets:
             market_dict = market.to_dict()
             market_dict['prices'] = market.calculate_prices()
             
@@ -97,8 +101,8 @@ def get_markets():
         
         # Add live sports data for sports markets
         try:
-            # Use filtered_items, not pagination.items, to avoid processing Polymarket markets
-            live_scores = market_sports_service.get_live_scores_for_markets(filtered_items)
+            # Use paginated_markets, not all markets, to avoid processing Polymarket markets
+            live_scores = market_sports_service.get_live_scores_for_markets(paginated_markets)
             for market_dict in markets:
                 if market_dict['id'] in live_scores:
                     market_dict['live_sports'] = live_scores[market_dict['id']]
@@ -106,8 +110,7 @@ def get_markets():
             print(f"Error fetching live sports data: {e}")
             # Continue without live sports data if there's an error
         
-        # Recalculate pagination totals after filtering
-        total_filtered = Market.query.filter(not_(Market.id.like('polymarket_%'))).count()
+        # Calculate pagination info from filtered results
         pages_filtered = (total_filtered + per_page - 1) // per_page
         
         return jsonify({
@@ -321,7 +324,7 @@ def cleanup_polymarket_markets():
                 'message': 'No Polymarket markets found in database',
                 'removed_count': 0
             }), 200
-            
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
