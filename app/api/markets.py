@@ -14,6 +14,7 @@ def get_markets():
     """Get all markets with filtering and pagination - only user-created markets"""
     try:
         # Query parameters
+        page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 20, type=int), 100)
         category = request.args.get('category')
         status = request.args.get('status')  # active, resolved
