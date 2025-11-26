@@ -22,7 +22,8 @@ def get_markets():
         search = request.args.get('search')
         
         # Build query - only user-created markets (exclude auto-synced Polymarket markets)
-        query = Market.query.filter(not_(Market.id.like('polymarket_%')))
+        # Filter out markets with IDs starting with 'polymarket_'
+        query = Market.query.filter(~Market.id.startswith('polymarket_'))
         
         # Apply filters
         if category and category != 'All':
