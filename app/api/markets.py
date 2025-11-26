@@ -3,7 +3,7 @@ from app import db, cache
 from app.models import Market, User
 from app.services.contract_service import contract_service
 from app.services.market_sports_service import market_sports_service
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, not_
 from datetime import datetime
 
 bp = Blueprint('markets', __name__)
@@ -22,7 +22,7 @@ def get_markets():
         search = request.args.get('search')
         
         # Build query - only user-created markets (exclude auto-synced Polymarket markets)
-        query = Market.query.filter(~Market.id.like('polymarket_%'))
+        query = Market.query.filter(not_(Market.id.like('polymarket_%')))
         
         # Apply filters
         if category and category != 'All':
