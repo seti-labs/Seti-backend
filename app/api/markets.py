@@ -9,7 +9,7 @@ from datetime import datetime
 bp = Blueprint('markets', __name__)
 
 @bp.route('', methods=['GET'])
-@cache.cached(timeout=2, query_string=True)  # 2 second cache for frequent updates
+# @cache.cached(timeout=2, query_string=True)  # Temporarily disabled to test filter
 def get_markets():
     """Get all markets with filtering and pagination - only user-created markets"""
     try:
