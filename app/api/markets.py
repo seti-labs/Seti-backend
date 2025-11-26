@@ -23,7 +23,8 @@ def get_markets():
         
         # Build query - only user-created markets (exclude auto-synced Polymarket markets)
         # Filter out markets with IDs starting with 'polymarket_'
-        query = Market.query.filter(~Market.id.startswith('polymarket_'))
+        from sqlalchemy import not_, or_
+        query = Market.query.filter(not_(Market.id.like('polymarket_%')))
         
         # Apply filters
         if category and category != 'All':
