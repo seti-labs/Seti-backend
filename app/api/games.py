@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app import db
 from app.models import Game
-from app.services.game_service import game_service
+from app.services.polymarket_teams_service import polymarket_teams_service
 from sqlalchemy import func
 
 games_bp = Blueprint('games', __name__)
@@ -80,37 +80,25 @@ def get_leagues():
 
 @games_bp.route('/games/sync', methods=['POST'])
 def sync_games():
-    """Manually trigger game sync from API"""
-    try:
-        fixtures = game_service.fetch_upcoming_fixtures()
-        
-        synced = 0
-        for fixture in fixtures:
-            game = game_service.sync_game_to_db(fixture)
-            if game:
-                synced += 1
-        
-        return jsonify({
-            'message': f'Synced {synced} fixtures',
-            'total': len(fixtures)
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Manually trigger game sync from API - DEPRECATED
+    Note: Fixture syncing is no longer supported.
+    Use /api/v1/polymarket/teams endpoints instead for team data.
+    """
+    return jsonify({
+        'message': 'Fixture syncing is deprecated. Use Polymarket Teams API instead.',
+        'new_endpoint': '/api/v1/polymarket/teams',
+        'total': 0
+    }), 200
 
 @games_bp.route('/countries', methods=['GET'])
 def get_countries():
-    """Get list of all countries from API"""
-    try:
-        countries = game_service.fetch_countries()
-        
-        return jsonify({
-            'countries': countries,
-            'count': len(countries)
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Get list of all countries from API - DEPRECATED"""
+    return jsonify({
+        'message': 'Countries endpoint is deprecated. Use Polymarket Teams API instead.',
+        'new_endpoint': '/api/v1/polymarket/teams/leagues',
+        'countries': [],
+        'count': 0
+    }), 200
 
 @games_bp.route('/games/create-markets', methods=['POST'])
 def create_markets_from_games():

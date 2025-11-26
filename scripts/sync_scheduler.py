@@ -17,8 +17,10 @@ from app import create_app, db
 from app.models.game import Game
 from app.models.market import Market
 from app.services.contract_service import contract_service
-from app.services.game_service import game_service
+# Note: game_service removed - fixture syncing deprecated
+# from app.services.game_service import game_service
 from web3 import Web3
+from typing import Optional
 
 def create_market_on_chain(game: Game) -> Optional[int]:
     """Create prediction market on-chain for a game"""
@@ -68,52 +70,18 @@ def resolve_market(market_id: int, winner: str) -> bool:
         return False
 
 def sync_fixtures():
-    """Main sync job: fetch fixtures, create markets, resolve finished games"""
+    """Main sync job: fetch fixtures, create markets, resolve finished games
+    
+    NOTE: This function is deprecated. Fixture syncing is disabled because
+    the old API (RapidAPI Sportsbook) required a paid subscription.
+    Use the new Polymarket Teams API for team data instead.
+    """
     app = create_app()
     
     with app.app_context():
-        print(f"\n=== Starting Sync Job at {datetime.utcnow()} ===")
-        
-        # Step 1: Fetch upcoming fixtures
-        print("\n1. Fetching upcoming fixtures...")
-        fixtures = game_service.fetch_upcoming_fixtures(days_ahead=7)
-        print(f"   Found {len(fixtures)} fixtures")
-        
-        # Step 2: Sync fixtures to database
-        print("\n2. Syncing fixtures to database...")
-        for fixture in fixtures:
-            game = game_service.sync_game_to_db(fixture)
-            if game:
-                print(f"   ✓ Synced: {game.home_team} vs {game.away_team}")
-        
-        # Step 3: Create markets for new games
-        print("\n3. Creating markets for new games...")
-        pending_games = Game.query.filter_by(market_id=None).all()
-        created = 0
-        for game in pending_games:
-            market_id = create_market_on_chain(game)
-            if market_id:
-                game.market_id = market_id
-                db.session.commit()
-                created += 1
-                print(f"   ✓ Created market {market_id} for {game.home_team} vs {game.away_team}")
-        print(f"   Created {created} new markets")
-        
-        # Step 4: Check for finished games and resolve markets
-        print("\n4. Checking for finished games...")
-        finished_games = Game.query.filter(
-            Game.market_id.isnot(None),
-            Game.status == 'FT'
-        ).all()
-        resolved = 0
-        for game in finished_games:
-            if game.home_score is not None and game.away_score is not None:
-                winner = game.get_winner()
-                if winner and resolve_market(game.market_id, winner):
-                    resolved += 1
-                    print(f"   ✓ Resolved market {game.market_id}: Winner = {winner}")
-        print(f"   Resolved {resolved} markets")
-        
+        print(f"\n=== Sync Job (DEPRECATED) at {datetime.utcnow()} ===")
+        print("Fixture syncing is disabled. Use Polymarket Teams API instead.")
+        print("Endpoint: /api/v1/polymarket/teams")
         print(f"\n=== Sync Job Completed ===\n")
 
 if __name__ == '__main__':

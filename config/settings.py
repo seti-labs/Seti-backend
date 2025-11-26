@@ -17,7 +17,10 @@ class Config:
     DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///seti.db')
     # Supabase provides postgres:// URLs, but SQLAlchemy needs postgresql://
     if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
+    elif DATABASE_URL.startswith('postgresql://') and 'psycopg' not in DATABASE_URL:
+        # Ensure psycopg2 driver is specified for Supabase
+        DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     
     # Supabase
@@ -63,7 +66,7 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     
     # External API Keys
-    RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', '')
+    # Note: Polymarket Gamma API is public and requires no authentication
     
     # File Upload Settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size

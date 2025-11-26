@@ -1,7 +1,5 @@
-import os
-import requests
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from app import db
 from app.models import Market, Prediction, User
 
@@ -9,33 +7,8 @@ class PredictionTrackingService:
     """Service for tracking prediction status and outcomes"""
     
     def __init__(self):
-        self.api_key = os.getenv('RAPIDAPI_KEY')
-        self.base_url = 'https://api-football-v1.p.rapidapi.com/v3'
-        self.headers = {
-            'X-RapidAPI-Key': self.api_key,
-            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
-            'Accept': 'application/json'
-        } if self.api_key else {}
-    
-    def _make_request(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
-        """Make API request with error handling"""
-        if not self.api_key:
-            print("Warning: RAPIDAPI_KEY not set")
-            return None
-        try:
-            url = f"{self.base_url}/{endpoint}"
-            response = requests.get(
-                url, 
-                headers=self.headers, 
-                params=params, 
-                timeout=10,
-                allow_redirects=True
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"API request failed: {e}")
-            return None
+        # No external API needed - uses database data only
+        pass
     
     def get_prediction_status(self, prediction: Prediction) -> Dict:
         """Get current status of a prediction"""

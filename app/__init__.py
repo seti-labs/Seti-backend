@@ -39,7 +39,7 @@ def create_app(config_name='default'):
          supports_credentials=True)
     
     # Register blueprints
-    from app.api import markets, predictions, users, analytics, comments, favorites, admin, games, prediction_tracking, api_status
+    from app.api import markets, predictions, users, analytics, comments, favorites, admin, games, prediction_tracking, api_status, polymarket_teams
     app.register_blueprint(markets.bp, url_prefix='/api/v1/markets')
     app.register_blueprint(predictions.bp, url_prefix='/api/v1/predictions')
     app.register_blueprint(users.bp, url_prefix='/api/v1/users')
@@ -49,6 +49,7 @@ def create_app(config_name='default'):
     app.register_blueprint(admin.bp, url_prefix='/api/v1/admin')
     app.register_blueprint(prediction_tracking.bp, url_prefix='/api/v1/tracking')
     app.register_blueprint(games.games_bp, url_prefix='/api/v1')
+    app.register_blueprint(polymarket_teams.bp, url_prefix='/api/v1/polymarket')
     
     # Health check endpoint
     @app.route('/health')

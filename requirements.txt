@@ -5,8 +5,8 @@ Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 
 # Database
-SQLAlchemy==2.0.23
-psycopg2-binary==2.9.9
+SQLAlchemy>=2.0.36
+psycopg[binary]>=3.1.0
 
 # Supabase (optional - only if you need realtime/storage features)
 # supabase==2.3.4

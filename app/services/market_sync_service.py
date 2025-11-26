@@ -7,7 +7,8 @@ from app import create_app, db
 from app.models.market import Market
 from app.models.game import Game
 from app.services.contract_service import contract_service
-from app.services.game_service import game_service
+# Note: game_service removed - fixture syncing deprecated
+# from app.services.game_service import game_service
 
 class MarketSyncService:
     """Background service to continuously fetch and sync markets"""
@@ -111,40 +112,13 @@ class MarketSyncService:
             db.session.rollback()
             
     def sync_sports_fixtures(self):
-        """Sync sports fixtures and create markets"""
-        try:
-            print(f"[{datetime.now()}] Syncing sports fixtures...")
-            
-            # Fetch upcoming fixtures
-            fixtures = game_service.fetch_upcoming_fixtures()
-            
-            if not fixtures:
-                print("No fixtures found")
-                return
-                
-            synced_count = 0
-            for fixture in fixtures:
-                try:
-                    # Sync fixture to database
-                    game = game_service.sync_game_to_db(fixture)
-                    
-                    if game and not game.market_id:
-                        # Create prediction market for this game
-                        market_id = self._create_sports_market(game)
-                        if market_id:
-                            game.market_id = market_id
-                            db.session.commit()
-                            synced_count += 1
-                            
-                except Exception as e:
-                    print(f"Error syncing fixture: {e}")
-                    continue
-                    
-            print(f"Synced {synced_count} new sports markets")
-            
-        except Exception as e:
-            print(f"Error syncing sports fixtures: {e}")
-            db.session.rollback()
+        """Sync sports fixtures and create markets - DEPRECATED
+        
+        Note: Fixture syncing is disabled. The old API (RapidAPI Sportsbook)
+        required a paid subscription. Use Polymarket Teams API for team data instead.
+        """
+        print(f"[{datetime.now()}] Sports fixture syncing is disabled (deprecated API)")
+        return
             
     def _create_sports_market(self, game: Game) -> Optional[int]:
         """Create a prediction market for a sports game"""

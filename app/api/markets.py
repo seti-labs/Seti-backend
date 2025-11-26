@@ -9,67 +9,10 @@ from datetime import datetime
 bp = Blueprint('markets', __name__)
 
 @bp.route('', methods=['GET'])
-@cache.cached(timeout=5, query_string=True)  # 5 second cache
+@cache.cached(timeout=2, query_string=True)  # 2 second cache for frequent updates
 def get_markets():
-    """Get all markets with filtering and pagination"""
+    """Get all markets with filtering and pagination - only user-created markets"""
     try:
-        # Auto-sync sportsbook markets if needed (only on first page)
-        page = request.args.get('page', 1, type=int)
-        if page == 1:
-            try:
-                # Check if we have recent sports markets (in last 6 hours)
-                recent_sports_markets = Market.query.filter(
-                    Market.category.like('sports-%'),
-                    Market.created_timestamp > int(datetime.utcnow().timestamp()) - 21600  # Last 6 hours
-                ).count()
-                
-                # If no recent sports markets, sync them
-                if recent_sports_markets == 0:
-                    advantages_data = market_sports_service._make_request('advantages/', {'type': 'ARBITRAGE'})
-                    if advantages_data and 'advantages' in advantages_data:
-                        advantages = advantages_data['advantages'][:10]  # Limit to 10 for auto-sync
-                        
-                        for advantage in advantages:
-                            try:
-                                event = advantage.get('market', {}).get('event', {})
-                                participants = event.get('participants', [])
-                                
-                                if len(participants) >= 2:
-                                    home_team = participants[0]['name']
-                                    away_team = participants[1]['name']
-                                    sport = participants[0].get('sport', '').replace('_', ' ').title()
-                                    competition = event.get('competitionInstance', {}).get('competition', {}).get('name', '')
-                                    start_time = event.get('startTime', '')
-                                    
-                                    market_question = f"Will {home_team} beat {away_team}?"
-                                    
-                                    # Check if market already exists
-                                    existing_market = Market.query.filter_by(question=market_question).first()
-                                    
-                                    if not existing_market:
-                                        end_time = int(datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp()) if start_time else int(datetime.utcnow().timestamp()) + 86400
-                                        
-                                        new_market = Market(
-                                            id=f"game_{len(advantages)}_{int(datetime.utcnow().timestamp())}",
-                                            question=market_question,
-                                            description=f"{competition} - {sport}",
-                                            category=f"sports-{sport.lower()}",
-                                            end_time=end_time,
-                                            creator="0x0000000000000000000000000000000000000000",
-                                            resolved=False,
-                                            created_timestamp=int(datetime.utcnow().timestamp())
-                                        )
-                                        db.session.add(new_market)
-                            except Exception as e:
-                                print(f"Error processing advantage: {e}")
-                                continue
-                        
-                        db.session.commit()
-                        print(f"Synced {len(advantages)} sports markets")
-            except Exception as sync_error:
-                print(f"Auto-sync failed: {sync_error}")
-                db.session.rollback()
-        
         # Query parameters
         per_page = min(request.args.get('per_page', 20, type=int), 100)
         category = request.args.get('category')

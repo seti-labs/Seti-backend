@@ -35,6 +35,20 @@ class Market(db.Model):
     featured = db.Column(db.Boolean, default=False)
     trending_score = db.Column(db.Float, default=0.0)
     
+    # Sports-specific fields
+    home_team = db.Column(db.String(100))
+    away_team = db.Column(db.String(100))
+    league = db.Column(db.String(100))
+    game_status = db.Column(db.String(20), default='NS')  # NS, LIVE, FT
+    kickoff_time = db.Column(db.BigInteger)  # Unix timestamp
+    current_score = db.Column(db.JSON)  # {'home': 0, 'away': 0}
+    team_logos = db.Column(db.JSON)  # {'home': 'url', 'away': 'url'}
+    venue = db.Column(db.String(200))
+    weather = db.Column(db.String(50))
+    odds = db.Column(db.JSON)  # {'home': 1.5, 'away': 2.1, 'draw': 3.2}
+    arbitrage_opportunity = db.Column(db.Boolean, default=False)
+    market_confidence = db.Column(db.Float, default=0.0)  # 0-1 confidence score
+    
     # Relationships
     predictions = db.relationship('Prediction', backref='market', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='market', lazy='dynamic', cascade='all, delete-orphan')
@@ -72,7 +86,20 @@ class Market(db.Model):
             'slug': self.slug,
             'featured': self.featured,
             'trending_score': self.trending_score,
-            'last_updated': self.last_updated.isoformat() if self.last_updated else None
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
+            # Sports-specific fields
+            'home_team': self.home_team,
+            'away_team': self.away_team,
+            'league': self.league,
+            'game_status': self.game_status,
+            'kickoff_time': self.kickoff_time,
+            'current_score': self.current_score,
+            'team_logos': self.team_logos,
+            'venue': self.venue,
+            'weather': self.weather,
+            'odds': self.odds,
+            'arbitrage_opportunity': self.arbitrage_opportunity,
+            'market_confidence': self.market_confidence
         }
     
     def calculate_prices(self):
