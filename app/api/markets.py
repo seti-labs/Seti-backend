@@ -22,9 +22,11 @@ def get_markets():
         search = request.args.get('search')
         
         # Build query - only user-created markets (exclude auto-synced Polymarket markets)
-        # Filter out markets with IDs starting with 'polymarket_'
-        # Using both SQLAlchemy filter and Python-side filter for maximum safety
-        query = Market.query.filter(~Market.id.like('polymarket_%'))
+        # Filter out markets with IDs starting with 'polymarket_' (case-insensitive)
+        # Using SQLAlchemy filter with multiple checks for reliability
+        query = Market.query.filter(
+            ~Market.id.like('polymarket_%')
+        )
         
         # Apply filters
         if category and category != 'All':
@@ -63,15 +65,23 @@ def get_markets():
         
         # Additional Python-side filter to ensure no Polymarket markets slip through
         # This is a safety net in case the SQLAlchemy filter doesn't work as expected
-        filtered_items = [m for m in pagination.items if not (m.id.startswith('polymarket_') or 'polymarket_' in m.id.lower())]
+        # Filter by checking if ID starts with 'polymarket_' (case-insensitive)
+        def is_polymarket_market(market_id: str) -> bool:
+            """Check if a market ID is a Polymarket-synced market"""
+            market_id_lower = market_id.lower()
+            return market_id_lower.startswith('polymarket_') or 'polymarket_' in market_id_lower
+        
+        filtered_items = [m for m in pagination.items if not is_polymarket_market(m.id)]
         
         # Log any Polymarket markets that slipped through (for debugging)
-        polymarket_markets = [m for m in pagination.items if m.id.startswith('polymarket_') or 'polymarket_' in m.id.lower()]
+        polymarket_markets = [m for m in pagination.items if is_polymarket_market(m.id)]
         if polymarket_markets:
             print(f"⚠️ WARNING: {len(polymarket_markets)} Polymarket markets found in query results (will be filtered out)")
             print(f"   Sample IDs: {[m.id for m in polymarket_markets[:3]]}")
         
         print(f"DEBUG: Total items from pagination: {len(pagination.items)}, After filter: {len(filtered_items)}")
+        print(f"DEBUG: First few market IDs from pagination: {[m.id for m in pagination.items[:5]]}")
+        print(f"DEBUG: First few market IDs after filter: {[m.id for m in filtered_items[:5]]}")
         
         markets = []
         for market in filtered_items:
