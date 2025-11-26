@@ -21,8 +21,8 @@ def get_markets():
         sort_by = request.args.get('sort_by', 'created_timestamp')  # volume_24h, total_liquidity, created_timestamp                                            
         search = request.args.get('search')
         
-        # Build query
-        query = Market.query
+        # Build query - only user-created markets (exclude auto-synced Polymarket markets)
+        query = Market.query.filter(~Market.id.like('polymarket_%'))
         
         # Apply filters
         if category and category != 'All':
