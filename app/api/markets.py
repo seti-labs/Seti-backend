@@ -62,6 +62,8 @@ def get_markets():
         
         # Additional Python-side filter to ensure no Polymarket markets slip through
         filtered_items = [m for m in pagination.items if not m.id.startswith('polymarket_')]
+        print(f"DEBUG: Total items from pagination: {len(pagination.items)}, After filter: {len(filtered_items)}")
+        print(f"DEBUG: Filtered IDs: {[m.id for m in filtered_items[:5]]}")
         
         markets = []
         for market in filtered_items:
