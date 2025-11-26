@@ -62,15 +62,18 @@ def get_markets():
         
         # CRITICAL: Filter out Polymarket markets BEFORE pagination to ensure they're never returned
         # This is a safety net in case the SQLAlchemy filter doesn't work as expected
-        def is_polymarket_market(market_id: str) -> bool:
-            """Check if a market ID is a Polymarket-synced market"""
+        # Use a simple, aggressive filter that checks if 'polymarket' appears anywhere in the ID
+        def is_polymarket_market(market_id) -> bool:
+            """Check if a market ID is a Polymarket-synced market - be very aggressive"""
             if not market_id:
                 return False
-            market_id_lower = str(market_id).lower()
-            return market_id_lower.startswith('polymarket_') or 'polymarket_' in market_id_lower
+            market_id_str = str(market_id).lower()
+            # Check for any variation of 'polymarket' in the ID
+            return 'polymarket' in market_id_str
         
         # Get all results and filter in Python before pagination
         all_markets = query.all()
+        # Filter out ANY market that contains 'polymarket' in its ID (case-insensitive)
         filtered_markets = [m for m in all_markets if not is_polymarket_market(m.id)]
         
         # Log any Polymarket markets that were filtered out
