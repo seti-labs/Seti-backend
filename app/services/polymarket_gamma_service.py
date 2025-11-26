@@ -174,12 +174,18 @@ class PolymarketGammaService:
         """
         Sync active markets from Polymarket to local database
         
+        NOTE: This function is DISABLED. Only user-created markets should be stored.
+        The API now filters out all Polymarket markets (IDs starting with 'polymarket_').
+        
         Args:
             limit: Maximum number of markets to sync
             
         Returns:
-            Number of markets synced
+            Number of markets synced (always 0, as sync is disabled)
         """
+        # DISABLED: Only user-created markets should be in the database
+        print("⚠️ sync_markets_to_database is disabled - only user-created markets are stored")
+        return 0
         events = self.get_events({
             'limit': limit,
             'closed': False,

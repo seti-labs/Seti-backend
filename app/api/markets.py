@@ -23,7 +23,8 @@ def get_markets():
         
         # Build query - only user-created markets (exclude auto-synced Polymarket markets)
         # Filter out markets with IDs starting with 'polymarket_'
-        query = Market.query.filter(not_(Market.id.like('polymarket_%')))
+        # Using both SQLAlchemy filter and Python-side filter for maximum safety
+        query = Market.query.filter(~Market.id.like('polymarket_%'))
         
         # Apply filters
         if category and category != 'All':
@@ -61,9 +62,16 @@ def get_markets():
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         # Additional Python-side filter to ensure no Polymarket markets slip through
-        filtered_items = [m for m in pagination.items if not m.id.startswith('polymarket_')]
+        # This is a safety net in case the SQLAlchemy filter doesn't work as expected
+        filtered_items = [m for m in pagination.items if not (m.id.startswith('polymarket_') or 'polymarket_' in m.id.lower())]
+        
+        # Log any Polymarket markets that slipped through (for debugging)
+        polymarket_markets = [m for m in pagination.items if m.id.startswith('polymarket_') or 'polymarket_' in m.id.lower()]
+        if polymarket_markets:
+            print(f"⚠️ WARNING: {len(polymarket_markets)} Polymarket markets found in query results (will be filtered out)")
+            print(f"   Sample IDs: {[m.id for m in polymarket_markets[:3]]}")
+        
         print(f"DEBUG: Total items from pagination: {len(pagination.items)}, After filter: {len(filtered_items)}")
-        print(f"DEBUG: Filtered IDs: {[m.id for m in filtered_items[:5]]}")
         
         markets = []
         for market in filtered_items:
@@ -79,7 +87,8 @@ def get_markets():
         
         # Add live sports data for sports markets
         try:
-            live_scores = market_sports_service.get_live_scores_for_markets(pagination.items)
+            # Use filtered_items, not pagination.items, to avoid processing Polymarket markets
+            live_scores = market_sports_service.get_live_scores_for_markets(filtered_items)
             for market_dict in markets:
                 if market_dict['id'] in live_scores:
                     market_dict['live_sports'] = live_scores[market_dict['id']]
@@ -275,6 +284,34 @@ def create_market():
             'market': market.to_dict()
         }), 201
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/cleanup-polymarket', methods=['POST'])
+def cleanup_polymarket_markets():
+    """Remove all Polymarket-synced markets from database (admin endpoint)"""
+    try:
+        # Find all markets with IDs starting with 'polymarket_'
+        polymarket_markets = Market.query.filter(Market.id.like('polymarket_%')).all()
+        count = len(polymarket_markets)
+        
+        if count > 0:
+            for market in polymarket_markets:
+                db.session.delete(market)
+            db.session.commit()
+            cache.clear()
+            
+            return jsonify({
+                'message': f'Removed {count} Polymarket markets from database',
+                'removed_count': count
+            }), 200
+        else:
+            return jsonify({
+                'message': 'No Polymarket markets found in database',
+                'removed_count': 0
+            }), 200
+            
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
